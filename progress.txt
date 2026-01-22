@@ -163,3 +163,20 @@
   - After server action mutation, use `router.refresh()` to refetch server component data without full page reload
   - Soft delete is simply `prisma.client.update({ data: { deletedAt: new Date() } })` - getClients already filters by `deletedAt: null`
 ---
+
+## 2026-01-22 - US-009
+- What was implemented: Supplier list page at /anagrafiche/fornitori with search/pagination, create form at /anagrafiche/fornitori/nuovo, edit form at /anagrafiche/fornitori/[id]/modifica, soft-delete with confirmation dialog, and expense category dropdown (servizi professionali, software, hardware, viaggi, telecomunicazioni, altro)
+- Files changed:
+  - src/app/anagrafiche/fornitori/actions.ts (server actions: getSuppliers, getSupplier, createSupplier, updateSupplier, deleteSupplier)
+  - src/app/anagrafiche/fornitori/SupplierList.tsx (client component with DataTable, delete modal, category labels)
+  - src/app/anagrafiche/fornitori/page.tsx (server component with dynamic rendering)
+  - src/app/anagrafiche/fornitori/SupplierForm.tsx (client form with country and expense category dropdowns)
+  - src/app/anagrafiche/fornitori/nuovo/page.tsx (create page)
+  - src/app/anagrafiche/fornitori/[id]/modifica/page.tsx (edit page with dynamic rendering)
+- **Learnings for future iterations:**
+  - DataTable `render` function receives the full item, not just the cell value: `render: (item) => ...`
+  - Supplier model uses `ExpenseCategory` enum from Prisma (same enum used by PurchaseInvoice and Expense models)
+  - Zod validation for enum fields: use `z.string().refine((val) => VALID_VALUES.includes(val))` since Zod doesn't natively validate Prisma enums
+  - When passing Prisma enum values from Zod-validated string, cast with `as ExpenseCategory` in the create/update data
+  - Supplier form is simpler than Client form: no VAT regime detection, no fiscal code, no currency preference
+---
