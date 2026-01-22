@@ -6,3 +6,265 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// --- Enums ---
+
+enum VatRegime {
+  nazionale
+  intraUE
+  extraUE
+}
+
+enum InvoiceStatus {
+  bozza
+  emessa
+  inviata
+  pagata
+  scaduta
+}
+
+enum QuoteStatus {
+  bozza
+  inviato
+  accettato
+  rifiutato
+  scaduto
+  convertito
+}
+
+enum PurchaseInvoiceStatus {
+  registrata
+  pagata
+}
+
+enum ExpenseCategory {
+  servizi_professionali
+  software
+  hardware
+  viaggi
+  telecomunicazioni
+  trasporti
+  pasti
+  materiale_ufficio
+  altro
+}
+
+enum TaxRateType {
+  standard
+  reduced
+  super_reduced
+  reverse_charge
+  export_exempt
+}
+
+// --- Models ---
+
+model Company {
+  id         String   @id @default(cuid())
+  name       String
+  nif        String
+  address    String
+  city       String   @default("")
+  postalCode String   @default("")
+  country    String   @default("ES")
+  email      String   @default("")
+  phone      String   @default("")
+  iban       String   @default("")
+  taxRegime  String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Client {
+  id         String     @id @default(cuid())
+  name       String
+  vatNumber  String     @default("")
+  fiscalCode String     @default("")
+  address    String     @default("")
+  city       String     @default("")
+  postalCode String     @default("")
+  country    String     @default("")
+  email      String     @default("")
+  currency   String     @default("EUR")
+  vatRegime  VatRegime  @default(nazionale)
+  notes      String     @default("")
+  deletedAt  DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  invoices   Invoice[]
+  quotes     Quote[]
+}
+
+model Supplier {
+  id              String          @id @default(cuid())
+  name            String
+  vatNumber       String          @default("")
+  address         String          @default("")
+  city            String          @default("")
+  postalCode      String          @default("")
+  country         String          @default("")
+  email           String          @default("")
+  expenseCategory ExpenseCategory @default(altro)
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  purchaseInvoices PurchaseInvoice[]
+}
+
+model TaxRate {
+  id      String      @id @default(cuid())
+  name    String
+  rate    Decimal
+  country String      @default("ES")
+  type    TaxRateType @default(standard)
+
+  invoiceLines  InvoiceLine[]
+  quoteLines    QuoteLine[]
+  creditNoteLines CreditNoteLine[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+}
+
+model Invoice {
+  id           String        @id @default(cuid())
+  number       String        @unique
+  clientId     String
+  date         DateTime
+  dueDate      DateTime?
+  status       InvoiceStatus @default(bozza)
+  currency     String        @default("EUR")
+  exchangeRate Decimal       @default(1)
+  disclaimer   String        @default("")
+  notes        String        @default("")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  client      Client        @relation(fields: [clientId], references: [id])
+  lines       InvoiceLine[]
+  creditNotes CreditNote[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal
+  unitPrice   Decimal
+  taxRateId   String
+
+  invoice  Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  taxRate  TaxRate @relation(fields: [taxRateId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model CreditNote {
+  id        String   @id @default(cuid())
+  number    String   @unique
+  invoiceId String
+  date      DateTime
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoice Invoice          @relation(fields: [invoiceId], references: [id])
+  lines   CreditNoteLine[]
+
+  @@index([invoiceId])
+}
+
+model CreditNoteLine {
+  id           String  @id @default(cuid())
+  creditNoteId String
+  description  String
+  quantity     Decimal
+  unitPrice    Decimal
+  taxRateId    String
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  taxRate    TaxRate    @relation(fields: [taxRateId], references: [id])
+
+  @@index([creditNoteId])
+}
+
+model Quote {
+  id         String      @id @default(cuid())
+  number     String      @unique
+  clientId   String
+  date       DateTime
+  expiryDate DateTime?
+  status     QuoteStatus @default(bozza)
+  notes      String      @default("")
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  client Client      @relation(fields: [clientId], references: [id])
+  lines  QuoteLine[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model QuoteLine {
+  id          String  @id @default(cuid())
+  quoteId     String
+  description String
+  quantity    Decimal
+  unitPrice   Decimal
+  taxRateId   String
+
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  taxRate TaxRate @relation(fields: [taxRateId], references: [id])
+
+  @@index([quoteId])
+}
+
+model PurchaseInvoice {
+  id         String                @id @default(cuid())
+  supplierId String
+  number     String
+  date       DateTime
+  category   ExpenseCategory       @default(altro)
+  status     PurchaseInvoiceStatus @default(registrata)
+  filePath   String?
+  notes      String                @default("")
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  supplier Supplier              @relation(fields: [supplierId], references: [id])
+  lines    PurchaseInvoiceLine[]
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseInvoiceLine {
+  id                String  @id @default(cuid())
+  purchaseInvoiceId String
+  description       String
+  amount            Decimal
+  taxRateId         String
+  deductible        Boolean @default(true)
+
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  taxRate         TaxRate         @relation(fields: [taxRateId], references: [id])
+
+  @@index([purchaseInvoiceId])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  date        DateTime
+  description String
+  amount      Decimal
+  category    ExpenseCategory @default(altro)
+  taxAmount   Decimal         @default(0)
+  deductible  Boolean         @default(true)
+  filePath    String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
