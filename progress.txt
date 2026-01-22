@@ -38,6 +38,9 @@
 - Prisma Decimal creation: `import { Decimal } from "@prisma/client/runtime/library"` then `new Decimal(value)`
 - Dynamic line items: array state with updateLine(index, field, value), addLine(), removeLine(index) helpers
 - Quote/Invoice form pattern: server component loads clients+taxRates, passes to client form component
+- Invoice VAT logic: nazionale=standard(21%), intraUE+VAT=reverse_charge(0%), intraUE-noVAT=standard(21%), extraUE=export_exempt(0%)
+- Tax rate type field used for auto-matching: standard, reduced, super_reduced, reverse_charge, export_exempt
+- Invoice disclaimer auto-generation: stored on Invoice.disclaimer field, determined by client vatRegime at creation time
 
 ---
 
@@ -215,4 +218,23 @@
   - Status badge pattern: use tailwind `rounded-full` with color classes per status value
   - Dropdown menu pattern: use relative positioning on button container, absolute on the menu with z-index
   - Quote status enum includes "convertito" (used when quote is converted to invoice in US-015) but should not be a user-selectable transition
+---
+
+## 2026-01-22 - US-012
+- What was implemented: Invoice creation form at /fatture/nuova with client selection (showing country), automatic VAT regime detection and tax rate auto-selection, date/due date fields, currency selection (EUR/GBP/USD) with exchange rate field for non-EUR, dynamic line items with auto-calculated totals, progressive numbering INV-YYYY-NNN, legal disclaimer auto-generation based on VAT regime, and save with status 'bozza'
+- Files changed:
+  - src/app/fatture/actions.ts (new - server actions: getClientsForInvoice with VAT info, getTaxRatesForInvoice with type, createInvoice with VAT logic and disclaimer generation, getDefaultTaxRateForClient)
+  - src/app/fatture/InvoiceForm.tsx (new - client component form with dynamic lines, VAT auto-selection on client change, currency/exchange rate support)
+  - src/app/fatture/nuova/page.tsx (new - server component page loading clients and tax rates)
+  - src/app/fatture/page.tsx (new - placeholder list page with "Nuova Fattura" button)
+  - prd.json (US-012 passes: true)
+- **Learnings for future iterations:**
+  - Invoice form extends quote form pattern with: currency selection, exchange rate, VAT regime display, and auto tax rate selection
+  - VAT regime logic: nazionale=standard(21%), intraUE+validVAT=reverse_charge(0%), intraUE+noVAT=standard(21%), extraUE=export_exempt(0%)
+  - ClientOptionWithVat includes vatRegime, vatNumber, currency, country - more data than simple ClientOption
+  - Tax rates have a `type` field (standard, reverse_charge, export_exempt) used for auto-matching by VAT regime
+  - Disclaimer is generated server-side in createInvoice based on client's vatRegime and stored on the invoice
+  - Currency symbol display uses a simple ternary: EUR=€, GBP=£, else=$
+  - Exchange rate field only shown when currency is not EUR (conditional rendering)
+  - useEffect with clientId dependency handles auto-setting currency and tax rates when client changes
 ---

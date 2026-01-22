@@ -215,7 +215,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "VAT regime logic is critical: nazionale (ES), intraUE (reverse charge if valid VAT), extraUE/UK (export exempt)."
     },
     {
