@@ -383,7 +383,7 @@
         "Typecheck passes"
       ],
       "priority": 22,
-      "passes": false,
+      "passes": true,
       "notes": "Use Anthropic SDK with claude-3-5-sonnet model. Send image as base64."
     },
     {

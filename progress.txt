@@ -45,6 +45,9 @@
 - "Create from parent" route pattern: /resource/nuova/[parentId] for child entities (e.g., credit note from invoice)
 - File upload pattern: client passes File object to server action, server uses fs/promises writeFile to uploads/{module}/{timestamp}_{name}
 - PurchaseInvoiceLine uses `amount` (single field) instead of quantity*unitPrice; also has `deductible` boolean flag
+- API Route Handlers use route.ts (not "use server"), support FormData via `request.formData()`
+- AI extraction API at /api/extract: POST with FormData file, returns ExtractionResult JSON
+- Anthropic SDK: `@anthropic-ai/sdk` package, use `type: "image"` for images and `type: "document"` for PDFs in content blocks
 
 ---
 
@@ -377,4 +380,22 @@
   - Deductible filter uses "si"/"no" string values in URL params, mapped to boolean in the where clause
   - Total amount display uses aggregate query matching the same `where` clause as the list query for consistency
   - Category labels map covers all ExpenseCategory enum values (not just the subset used in the expense form)
+---
+
+## 2026-01-22 - US-022
+- What was implemented: AI data extraction API route at /api/extract that accepts file uploads (PDF, JPG, PNG, WebP, GIF), sends them to Claude API with vision capabilities, extracts structured invoice/receipt data (supplier name, VAT number, invoice number, date, line items, amounts, tax, total), and matches extracted supplier VAT numbers against existing suppliers in the database
+- Files changed:
+  - src/app/api/extract/route.ts (new - POST API route with file upload, Claude Vision extraction, supplier matching)
+  - package.json, package-lock.json (added @anthropic-ai/sdk dependency)
+  - .env.example (added ANTHROPIC_API_KEY variable)
+  - prd.json (US-022 passes: true)
+- **Learnings for future iterations:**
+  - API Route Handlers (route.ts) do NOT need "use server" directive - they are server-side by default
+  - Anthropic SDK uses `type: "image"` with `source: { type: "base64", media_type, data }` for image content blocks
+  - For PDFs, use `type: "document"` instead of `type: "image"` in the content block
+  - Claude Vision model: use "claude-3-5-sonnet-latest" for extraction tasks
+  - JSON parsing from AI responses: always try direct parse first, then fallback to regex extraction from markdown code blocks
+  - Supplier matching by VAT: normalize (remove spaces/dots/hyphens, uppercase) then use Prisma `contains` with `mode: "insensitive"`
+  - ExtractionResult type exported from the route for use by consumer components (US-023)
+  - Next.js API routes support FormData natively via `request.formData()`
 ---
