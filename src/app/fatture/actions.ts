@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
-import { VatRegime } from "@prisma/client";
+import { VatRegime, InvoiceStatus, Prisma } from "@prisma/client";
 
 // --- Types ---
 
@@ -191,6 +191,97 @@ export async function createInvoice(
   });
 
   return { success: true, message: "Fattura creata con successo" };
+}
+
+// --- Types for invoice list ---
+
+export interface InvoiceListItem {
+  id: string;
+  number: string;
+  clientName: string;
+  date: string;
+  dueDate: string | null;
+  total: number;
+  currency: string;
+  status: string;
+}
+
+export interface InvoiceListResult {
+  invoices: InvoiceListItem[];
+  totalCount: number;
+}
+
+// --- Fetch invoices with pagination and status filter ---
+
+export async function getInvoices(params: {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+}): Promise<InvoiceListResult> {
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 10;
+  const skip = (page - 1) * pageSize;
+
+  const where: Prisma.InvoiceWhereInput = {};
+  if (params.status && params.status !== "tutti") {
+    where.status = params.status as InvoiceStatus;
+  }
+
+  const [invoices, totalCount] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: "desc" },
+      include: {
+        client: { select: { name: true } },
+        lines: {
+          include: { taxRate: { select: { rate: true } } },
+        },
+      },
+    }),
+    prisma.invoice.count({ where }),
+  ]);
+
+  const result: InvoiceListItem[] = invoices.map((inv) => {
+    const total = inv.lines.reduce((sum, line) => {
+      const subtotal = Number(line.quantity) * Number(line.unitPrice);
+      const tax = subtotal * (Number(line.taxRate.rate) / 100);
+      return sum + subtotal + tax;
+    }, 0);
+
+    return {
+      id: inv.id,
+      number: inv.number,
+      clientName: inv.client.name,
+      date: inv.date.toISOString().split("T")[0],
+      dueDate: inv.dueDate ? inv.dueDate.toISOString().split("T")[0] : null,
+      total,
+      currency: inv.currency,
+      status: inv.status,
+    };
+  });
+
+  return { invoices: result, totalCount };
+}
+
+// --- Update invoice status ---
+
+export async function updateInvoiceStatus(
+  invoiceId: string,
+  newStatus: string
+): Promise<InvoiceActionResult> {
+  const validStatuses = ["bozza", "emessa", "inviata", "pagata", "scaduta"];
+  if (!validStatuses.includes(newStatus)) {
+    return { success: false, message: "Stato non valido" };
+  }
+
+  await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: { status: newStatus as "bozza" | "emessa" | "inviata" | "pagata" | "scaduta" },
+  });
+
+  return { success: true, message: "Stato aggiornato" };
 }
 
 // --- Export helper for client components ---

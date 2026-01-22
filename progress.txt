@@ -238,3 +238,18 @@
   - Exchange rate field only shown when currency is not EUR (conditional rendering)
   - useEffect with clientId dependency handles auto-setting currency and tax rates when client changes
 ---
+
+## 2026-01-22 - US-013
+- What was implemented: Invoice list page at /fatture showing all invoices with DataTable (columns: number, client, date, due date, total, currency, status), colored status badges (bozza/emessa/inviata/pagata/scaduta), status change dropdown with valid transitions, status filter buttons, edit link for bozza invoices, detail link, and pagination
+- Files changed:
+  - src/app/fatture/actions.ts (added getInvoices with pagination/status filter/total calculation, updateInvoiceStatus with valid status enforcement, imported InvoiceStatus and Prisma types)
+  - src/app/fatture/InvoiceList.tsx (new - client component with DataTable, status badges, filter tabs, status change dropdown)
+  - src/app/fatture/page.tsx (updated - server component fetching invoices with searchParams and passing to InvoiceList)
+  - prd.json (US-013 passes: true)
+- **Learnings for future iterations:**
+  - Invoice total is computed from lines (sum of quantity*unitPrice + tax per line) since it's not stored on the Invoice model (same pattern as quotes)
+  - Prisma where clause typing: use `Prisma.InvoiceWhereInput` type and cast status string to `InvoiceStatus` enum for type safety
+  - Status filter pattern: URL param "status" with "tutti" as default/clear-all; filter buttons update URL and reset to page 1
+  - Invoice status transitions: bozza→emessa, emessa→inviata/pagata/scaduta, inviata→pagata/scaduta, scaduta→pagata
+  - formatCurrency helper shows currency-specific symbol based on the invoice's currency field
+---

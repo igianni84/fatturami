@@ -1,20 +1,29 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
+import { getInvoices } from "./actions";
+import InvoiceList from "./InvoiceList";
 
-export default async function FatturePage() {
+export default async function FatturePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; status?: string }>;
+}) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const status = params.status || "tutti";
+
+  const { invoices, totalCount } = await getInvoices({
+    page,
+    pageSize: 10,
+    status,
+  });
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Fatture</h1>
-        <Link
-          href="/fatture/nuova"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Nuova Fattura
-        </Link>
-      </div>
-      <p className="text-gray-500">Nessuna fattura presente.</p>
-    </div>
+    <InvoiceList
+      invoices={invoices}
+      totalCount={totalCount}
+      page={page}
+      currentStatus={status}
+    />
   );
 }
