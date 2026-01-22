@@ -66,6 +66,8 @@
 - Cross-group imports use `@/app/(main)/...` path (route groups are transparent in URLs but NOT in file imports)
 - Auth utility at `src/lib/auth.ts`: hashPassword, verifyPassword, createToken, verifyToken, setAuthCookie, removeAuthCookie, getCurrentUser
 - Logout pattern: server action in `src/app/(main)/logout/actions.ts` using removeAuthCookie + redirect("/login")
+- VIES validation utility at `src/lib/vies.ts` - validateVatVies(vatNumber, country) returns { valid: boolean|null, name?, address?, error? }
+- Non-blocking external API pattern: use AbortSignal.timeout(), return null for service unavailable, allow save with warning
 
 ---
 
@@ -625,4 +627,25 @@
   - Change password pattern: verify current password → hash new password → update user record
   - Settings page can stack multiple card sections vertically with mb-6 spacing between them
   - Form resets fields to empty on successful password change for security (no lingering password data in state)
+---
+
+## 2026-01-22 - US-034
+- What was implemented: VIES VAT number validation for EU clients - when saving a client with an EU country and VAT number, the system validates against the VIES SOAP API. Shows validation status (valid with green indicator, invalid with red, or service unavailable with amber warning). Stores validation result (viesValid boolean) and timestamp (viesValidatedAt) on the Client model. If VIES is unavailable, allows saving with a warning message. Non-blocking: network timeouts and errors are gracefully handled.
+- Files changed:
+  - prisma/schema.prisma (added viesValid Boolean? and viesValidatedAt DateTime? to Client model)
+  - prisma/migrations/20260122200000_add_vies_validation_fields/migration.sql (ALTER TABLE adding new columns)
+  - src/lib/vies.ts (new - VIES SOAP API validation service with country code handling, timeout, XML parsing)
+  - src/app/(main)/anagrafiche/clienti/actions.ts (added VIES validation in createClient/updateClient, new ViesStatus/ClientData types, updated getClient to return VIES fields)
+  - src/app/(main)/anagrafiche/clienti/ClientForm.tsx (added VIES status display with colored indicators, updated props to use ClientData)
+  - prd.json (US-034 passes: true)
+- **Learnings for future iterations:**
+  - VIES SOAP API endpoint: https://ec.europa.eu/taxation_customs/vies/services/checkVatService (POST with XML body)
+  - Greece uses "EL" as VIES country code instead of ISO "GR" - must convert before sending
+  - VAT number should be stripped of country prefix before sending to VIES (users may enter "IT12345..." format)
+  - VIES validation is non-blocking: use AbortSignal.timeout(10000) and catch errors gracefully
+  - Store viesValid as nullable Boolean (null = never validated or service unavailable)
+  - When VIES is unavailable during update, preserve existing validation result from the database
+  - SOAP response parsing: extract `<valid>true|false</valid>` from XML response, check for `<faultstring>` for errors
+  - ClientData extends ClientFormData with VIES fields - keeps form data separate from DB metadata
+  - VIES status display: colored dot indicators (green=valid, red=invalid, amber=unavailable) with validation date
 ---

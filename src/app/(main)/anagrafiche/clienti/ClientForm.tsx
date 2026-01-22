@@ -7,6 +7,8 @@ import {
   updateClient,
   type ClientFormData,
   type ClientActionResult,
+  type ClientData,
+  type ViesStatus,
 } from "./actions";
 
 const EU_COUNTRIES = [
@@ -85,7 +87,7 @@ const emptyForm: ClientFormData = {
 };
 
 interface ClientFormProps {
-  initialData?: ClientFormData | null;
+  initialData?: ClientData | null;
   clientId?: string;
 }
 
@@ -97,6 +99,11 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
   );
   const [result, setResult] = useState<ClientActionResult | null>(null);
   const [saving, setSaving] = useState(false);
+  const [viesStatus, setViesStatus] = useState<ViesStatus | null>(
+    initialData
+      ? { valid: initialData.viesValid, validatedAt: initialData.viesValidatedAt }
+      : null
+  );
 
   const detectedRegime = formData.country
     ? detectVatRegime(formData.country)
@@ -118,6 +125,9 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
       : await createClient(formData);
 
     if (res.success) {
+      if (res.viesStatus) {
+        setViesStatus(res.viesStatus);
+      }
       router.push("/anagrafiche/clienti");
     } else {
       setResult(res);
@@ -209,6 +219,38 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
             />
             {fieldError("vatNumber") && (
               <p className="text-red-600 text-sm mt-1">{fieldError("vatNumber")}</p>
+            )}
+            {viesStatus && formData.vatNumber && EU_COUNTRY_CODES.includes(formData.country.toUpperCase()) && (
+              <div className="mt-1">
+                {viesStatus.valid === true && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    VIES: Valida
+                    {viesStatus.validatedAt && (
+                      <span className="text-gray-400 text-xs ml-1">
+                        ({new Date(viesStatus.validatedAt).toLocaleDateString("it-IT")})
+                      </span>
+                    )}
+                  </p>
+                )}
+                {viesStatus.valid === false && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                    VIES: Non valida
+                    {viesStatus.validatedAt && (
+                      <span className="text-gray-400 text-xs ml-1">
+                        ({new Date(viesStatus.validatedAt).toLocaleDateString("it-IT")})
+                      </span>
+                    )}
+                  </p>
+                )}
+                {viesStatus.valid === null && viesStatus.message && (
+                  <p className="text-sm text-amber-600 flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
+                    {viesStatus.message}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

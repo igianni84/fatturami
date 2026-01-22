@@ -76,21 +76,23 @@ model Company {
 }
 
 model Client {
-  id         String     @id @default(cuid())
-  name       String
-  vatNumber  String     @default("")
-  fiscalCode String     @default("")
-  address    String     @default("")
-  city       String     @default("")
-  postalCode String     @default("")
-  country    String     @default("")
-  email      String     @default("")
-  currency   String     @default("EUR")
-  vatRegime  VatRegime  @default(nazionale)
-  notes      String     @default("")
-  deletedAt  DateTime?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  name            String
+  vatNumber       String     @default("")
+  fiscalCode      String     @default("")
+  address         String     @default("")
+  city            String     @default("")
+  postalCode      String     @default("")
+  country         String     @default("")
+  email           String     @default("")
+  currency        String     @default("EUR")
+  vatRegime       VatRegime  @default(nazionale)
+  notes           String     @default("")
+  viesValid       Boolean?
+  viesValidatedAt DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   invoices   Invoice[]
   quotes     Quote[]

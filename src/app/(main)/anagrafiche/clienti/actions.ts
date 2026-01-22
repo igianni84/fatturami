@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { VatRegime } from "@prisma/client";
+import { validateVatVies, isViesEligible } from "@/lib/vies";
 
 // --- List ---
 
@@ -111,15 +112,27 @@ const clientSchema = z.object({
 
 export type ClientFormData = z.infer<typeof clientSchema>;
 
+export type ViesStatus = {
+  valid: boolean | null;
+  validatedAt: string | null;
+  message?: string;
+};
+
 export type ClientActionResult = {
   success: boolean;
   errors?: Record<string, string[]>;
   message?: string;
+  viesStatus?: ViesStatus;
 };
 
 // --- Get single client ---
 
-export async function getClient(id: string): Promise<ClientFormData | null> {
+export interface ClientData extends ClientFormData {
+  viesValid: boolean | null;
+  viesValidatedAt: string | null;
+}
+
+export async function getClient(id: string): Promise<ClientData | null> {
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client || client.deletedAt) return null;
   return {
@@ -133,6 +146,8 @@ export async function getClient(id: string): Promise<ClientFormData | null> {
     email: client.email,
     currency: client.currency,
     notes: client.notes,
+    viesValid: client.viesValid,
+    viesValidatedAt: client.viesValidatedAt?.toISOString() ?? null,
   };
 }
 
@@ -160,14 +175,46 @@ export async function createClient(
 
   const vatRegime = detectVatRegime(country);
 
+  // VIES validation for EU clients with VAT number
+  let viesValid: boolean | null = null;
+  let viesValidatedAt: Date | null = null;
+  let viesMessage: string | undefined;
+
+  if (vatNumber && isViesEligible(country)) {
+    const viesResult = await validateVatVies(vatNumber, country);
+    if (viesResult.valid !== null) {
+      viesValid = viesResult.valid;
+      viesValidatedAt = new Date();
+    } else {
+      // Service unavailable - allow saving with warning
+      viesMessage = viesResult.error;
+    }
+  }
+
   await prisma.client.create({
     data: {
       ...result.data,
       vatRegime,
+      viesValid,
+      viesValidatedAt,
     },
   });
 
-  return { success: true, message: "Cliente creato con successo" };
+  const viesStatus: ViesStatus = {
+    valid: viesValid,
+    validatedAt: viesValidatedAt?.toISOString() ?? null,
+    message: viesMessage,
+  };
+
+  return {
+    success: true,
+    message: viesValid === false
+      ? "Cliente creato. Attenzione: partita IVA non valida secondo VIES."
+      : viesMessage
+        ? `Cliente creato. Avviso: ${viesMessage}`
+        : "Cliente creato con successo",
+    viesStatus,
+  };
 }
 
 // --- Delete client (soft delete) ---
@@ -206,13 +253,51 @@ export async function updateClient(
 
   const vatRegime = detectVatRegime(country);
 
+  // VIES validation for EU clients with VAT number
+  let viesValid: boolean | null = null;
+  let viesValidatedAt: Date | null = null;
+  let viesMessage: string | undefined;
+
+  if (vatNumber && isViesEligible(country)) {
+    const viesResult = await validateVatVies(vatNumber, country);
+    if (viesResult.valid !== null) {
+      viesValid = viesResult.valid;
+      viesValidatedAt = new Date();
+    } else {
+      // Service unavailable - keep existing validation, but warn
+      const existing = await prisma.client.findUnique({
+        where: { id },
+        select: { viesValid: true, viesValidatedAt: true },
+      });
+      viesValid = existing?.viesValid ?? null;
+      viesValidatedAt = existing?.viesValidatedAt ?? null;
+      viesMessage = viesResult.error;
+    }
+  }
+
   await prisma.client.update({
     where: { id },
     data: {
       ...result.data,
       vatRegime,
+      viesValid,
+      viesValidatedAt,
     },
   });
 
-  return { success: true, message: "Cliente aggiornato con successo" };
+  const viesStatus: ViesStatus = {
+    valid: viesValid,
+    validatedAt: viesValidatedAt?.toISOString() ?? null,
+    message: viesMessage,
+  };
+
+  return {
+    success: true,
+    message: viesValid === false
+      ? "Cliente aggiornato. Attenzione: partita IVA non valida secondo VIES."
+      : viesMessage
+        ? `Cliente aggiornato. Avviso: ${viesMessage}`
+        : "Cliente aggiornato con successo",
+    viesStatus,
+  };
 }
