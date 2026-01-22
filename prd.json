@@ -490,7 +490,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 28,
-      "passes": false,
+      "passes": true,
       "notes": "Critical: only Spanish domestic invoices contribute to IVA repercutida."
     },
     {

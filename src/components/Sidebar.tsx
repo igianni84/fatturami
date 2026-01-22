@@ -32,7 +32,14 @@ const navItems: NavItem[] = [
       { label: "PDF", href: "/import/pdf" },
     ],
   },
-  { label: "Fiscale", href: "/fiscale" },
+  {
+    label: "Fiscale",
+    href: "/fiscale",
+    children: [
+      { label: "IVA", href: "/fiscale/iva" },
+      { label: "IRPF", href: "/fiscale/irpf" },
+    ],
+  },
   { label: "Impostazioni", href: "/impostazioni" },
 ];
 

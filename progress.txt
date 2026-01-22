@@ -54,6 +54,9 @@
 - Batch processing pattern: sequential loop with status array for progress tracking; avoid Promise.all for API-rate-limited operations
 - ExtractionResult from /api/extract maps to ReviewItem for editable review before import
 - Charts: use `recharts` library with ResponsiveContainer (needs fixed-height parent), BarChart/LineChart components
+- Fiscal report pattern: server action queries with client.vatRegime filter, client component with period selector and useEffect for data reload
+- Quarter range: `start = new Date(year, (quarter-1)*3, 1)`, `end = new Date(year, (quarter-1)*3+3, 0, 23,59,59,999)`
+- Fiscal section uses /fiscale/page.tsx with redirect() to default subpage (/fiscale/iva)
 
 ---
 
@@ -492,4 +495,24 @@
   - YAxis tickFormatter can abbreviate large values: `value >= 1000 ? (value/1000).toFixed(0) + 'k' : value`
   - Monthly revenue query reuses the same invoice total calculation pattern (quantity*unitPrice + tax per line)
   - Chart data is always 12 items (one per month) with 0 revenue for months without invoices
+---
+
+## 2026-01-22 - US-028
+- What was implemented: Quarterly VAT report page at /fiscale/iva with quarter/year selector, IVA Repercutida (VAT on domestic sales only), IVA Soportada Deducible (deductible VAT on purchases), IVA result (to pay/credit), breakdown by tax rate table, and intra-EU operations summary (for Modelo 349). Updated Sidebar with Fiscale children links (IVA, IRPF). Created /fiscale redirect page.
+- Files changed:
+  - src/app/fiscale/iva/actions.ts (new - getVATReport server action with domestic sales VAT, deductible purchase VAT, intra-EU operations)
+  - src/app/fiscale/iva/VATReport.tsx (new - client component with period selector, summary cards, rate breakdown table, intra-EU table)
+  - src/app/fiscale/iva/page.tsx (new - server component loading initial data for current quarter)
+  - src/app/fiscale/page.tsx (new - redirect to /fiscale/iva)
+  - src/components/Sidebar.tsx (updated - Fiscale now has children: IVA, IRPF)
+  - prd.json (US-028 passes: true)
+- **Learnings for future iterations:**
+  - VAT report query pattern: filter invoices by client.vatRegime to separate domestic from intra-EU/extra-EU
+  - IVA Repercutida only counts invoices where client.vatRegime === "nazionale" (domestic Spanish)
+  - IVA Soportada only counts purchase invoice lines where deductible === true
+  - Quarter range calculation: `(quarter - 1) * 3` for start month, `(quarter - 1) * 3 + 3` for end month boundary
+  - Rate breakdown pattern: Map keyed by taxRate.id, accumulating sales and purchase amounts per rate
+  - Intra-EU operations summary: separate query filtering client.vatRegime === "intraUE", shows base amounts (no tax since reverse charge)
+  - Sidebar children pattern works for Fiscale section same as Anagrafiche/Importazioni
+  - /fiscale/page.tsx uses `redirect()` from next/navigation to default to /fiscale/iva
 ---
