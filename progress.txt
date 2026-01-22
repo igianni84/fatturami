@@ -41,6 +41,7 @@
 - Invoice VAT logic: nazionale=standard(21%), intraUE+VAT=reverse_charge(0%), intraUE-noVAT=standard(21%), extraUE=export_exempt(0%)
 - Tax rate type field used for auto-matching: standard, reduced, super_reduced, reverse_charge, export_exempt
 - Invoice disclaimer auto-generation: stored on Invoice.disclaimer field, determined by client vatRegime at creation time
+- Detail page pattern: server component with `notFound()` for missing records, `export const dynamic = "force-dynamic"`, grid layout for info cards
 
 ---
 
@@ -252,4 +253,17 @@
   - Status filter pattern: URL param "status" with "tutti" as default/clear-all; filter buttons update URL and reset to page 1
   - Invoice status transitions: bozza→emessa, emessa→inviata/pagata/scaduta, inviata→pagata/scaduta, scaduta→pagata
   - formatCurrency helper shows currency-specific symbol based on the invoice's currency field
+---
+
+## 2026-01-22 - US-014
+- What was implemented: Invoice legal disclaimers based on VAT regime - updated generateDisclaimer to include standard Spanish disclaimer for domestic invoices ("Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992"), reverse charge for intra-EU with valid VAT, export exempt for extra-EU. Created invoice detail page at /fatture/[id] showing full invoice info (client details, line items, totals, disclaimer, and notes).
+- Files changed:
+  - src/app/fatture/actions.ts (updated generateDisclaimer to cover all regimes, added getInvoice server action with InvoiceDetail type)
+  - src/app/fatture/[id]/page.tsx (new - invoice detail page with all fields, line items table, totals, disclaimer display, and notes)
+- **Learnings for future iterations:**
+  - Invoice detail page pattern: server component with notFound() for missing records, grid layout for info cards, table for line items, conditional disclaimer/notes sections
+  - Disclaimer display uses a yellow-tinted box (bg-yellow-50, border-yellow-200) to draw attention to legal text
+  - VatRegime.nazionale needs a standard Spanish tax disclaimer (not empty string) - "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992"
+  - IntraUE without valid VAT should also use the standard Spanish disclaimer (since 21% IVA applies)
+  - Detail pages reuse statusLabels/statusColors patterns from list pages
 ---
