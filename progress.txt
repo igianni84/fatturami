@@ -53,6 +53,7 @@
 - Sidebar navigation sections with children: `{ label, href, children: [{ label, href }] }` (see Importazioni)
 - Batch processing pattern: sequential loop with status array for progress tracking; avoid Promise.all for API-rate-limited operations
 - ExtractionResult from /api/extract maps to ReviewItem for editable review before import
+- Charts: use `recharts` library with ResponsiveContainer (needs fixed-height parent), BarChart/LineChart components
 
 ---
 
@@ -458,4 +459,37 @@
   - Duplicate detection for PDF imports: check by supplierId + invoiceNumber before creating
   - File validation on client side: check file.type against allowedTypes array before adding to selection
   - Multi-file input: use `multiple` attribute on input[type=file] for batch selection
+---
+
+## 2026-01-22 - US-026
+- What was implemented: Dashboard page at / (home) with period selector (month/quarter/year), four metric cards (revenue from issued invoices, expenses from purchases+expenses, balance, overdue invoice count), and a recent documents list showing last 5 invoices and purchases sorted by date
+- Files changed:
+  - src/app/dashboard/actions.ts (new - getDashboardData server action with period range calculation, revenue/expense aggregation, overdue count, recent docs)
+  - src/app/dashboard/Dashboard.tsx (new - client component with period selector, metric cards, recent documents list)
+  - src/app/page.tsx (updated - server component loading initial data for month period)
+  - prd.json (US-026 passes: true)
+- **Learnings for future iterations:**
+  - Dashboard pattern: server component loads initial data for default period, client component handles period switching via useEffect
+  - Revenue calculation: sum of (quantity * unitPrice + tax) for all lines of invoices with status emessa/inviata/pagata in the period
+  - Expense calculation: purchase invoice line totals (amount + tax) + expense aggregate (amount + taxAmount)
+  - Overdue invoices: count where status is emessa/inviata AND dueDate < now
+  - Period range helper: month uses current month, quarter uses floor(month/3)*3, year uses Jan 1 to Dec 31
+  - Recent documents combine invoices and purchases, sorted by date desc, limited to 5
+  - Loading state: use opacity-60 on the cards grid during data fetch for visual feedback
+---
+
+## 2026-01-22 - US-027
+- What was implemented: Monthly revenue bar chart on the dashboard using recharts library, showing revenue per month for the current year. Server action fetches all issued invoices for the year and groups revenue by month. Chart uses ResponsiveContainer for responsive sizing, BarChart with CartesianGrid, XAxis (month abbreviations), YAxis (formatted with € and k suffix), and Tooltip with formatted currency values.
+- Files changed:
+  - src/app/dashboard/actions.ts (added MonthlyRevenue type, monthlyRevenue calculation for current year, included in DashboardData response)
+  - src/app/dashboard/Dashboard.tsx (added recharts imports, revenue bar chart section between metrics cards and recent documents)
+  - package.json, package-lock.json (added recharts dependency)
+  - prd.json (US-027 passes: true)
+- **Learnings for future iterations:**
+  - recharts Tooltip `formatter` parameter type is `value: number | undefined` - use `Number(value)` instead of typing as number
+  - recharts ResponsiveContainer needs explicit width="100%" and height="100%" with a fixed-height parent container
+  - Bar chart with `radius={[4, 4, 0, 0]}` gives rounded top corners for a modern look
+  - YAxis tickFormatter can abbreviate large values: `value >= 1000 ? (value/1000).toFixed(0) + 'k' : value`
+  - Monthly revenue query reuses the same invoice total calculation pattern (quantity*unitPrice + tax per line)
+  - Chart data is always 12 items (one per month) with 0 revenue for months without invoices
 ---
