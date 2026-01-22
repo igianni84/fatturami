@@ -42,6 +42,7 @@
 - Tax rate type field used for auto-matching: standard, reduced, super_reduced, reverse_charge, export_exempt
 - Invoice disclaimer auto-generation: stored on Invoice.disclaimer field, determined by client vatRegime at creation time
 - Detail page pattern: server component with `notFound()` for missing records, `export const dynamic = "force-dynamic"`, grid layout for info cards
+- "Create from parent" route pattern: /resource/nuova/[parentId] for child entities (e.g., credit note from invoice)
 
 ---
 
@@ -280,4 +281,23 @@
   - The "convertito" status was already defined in the QuoteStatus enum in schema.prisma but not shown in the UI - added to statusLabels/statusColors
   - Cross-module server action import works fine: client component imports from "@/app/fatture/actions" while being in preventivi
   - Conversion sets invoice date to current date (new Date()) and currency from client's preferred currency
+---
+
+## 2026-01-22 - US-016
+- What was implemented: Credit note creation from invoice - "Crea nota di credito" button on invoice detail page (only for emessa/inviata/pagata statuses), credit note form pre-filled with invoice lines allowing partial credit (remove/adjust lines), progressive numbering NC-YYYY-NNN, reference to original invoice visible, detail page for credit notes, and placeholder list page at /note-credito
+- Files changed:
+  - src/app/note-credito/actions.ts (new - server actions: getInvoiceForCreditNote, createCreditNote with Zod validation and progressive numbering)
+  - src/app/note-credito/nuova/[invoiceId]/page.tsx (new - server component loading invoice data for credit note form)
+  - src/app/note-credito/nuova/[invoiceId]/CreditNoteForm.tsx (new - client component form with pre-filled invoice lines, remove/adjust support)
+  - src/app/note-credito/[id]/page.tsx (new - credit note detail page with line items, totals, reference to original invoice)
+  - src/app/note-credito/page.tsx (new - placeholder list page for navigation)
+  - src/app/fatture/[id]/page.tsx (updated - added "Crea nota di credito" button for emessa/inviata/pagata invoices)
+  - prd.json (US-016 passes: true)
+- **Learnings for future iterations:**
+  - Credit note form is pre-filled from invoice lines but allows removing lines for partial credit (no add line needed since credit can only reduce)
+  - Credit note uses same VAT logic as original invoice (same taxRateId on lines)
+  - Route pattern for "create from parent": /note-credito/nuova/[invoiceId] passes parent ID as route param
+  - CreditNote model has invoiceId relation; currency is inherited from the parent invoice (not stored on credit note)
+  - Credit note detail page reads currency from the related invoice record
+  - Button visibility condition uses multiple status OR checks: `invoice.status === "emessa" || invoice.status === "inviata" || invoice.status === "pagata"`
 ---
