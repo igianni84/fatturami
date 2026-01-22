@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
-import { ExpenseCategory, PurchaseInvoiceStatus } from "@prisma/client";
+import { ExpenseCategory, PurchaseInvoiceStatus, Prisma } from "@prisma/client";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
@@ -141,4 +141,113 @@ export async function createPurchaseInvoice(
   });
 
   return { success: true, id: purchaseInvoice.id };
+}
+
+// --- Types for purchase invoice list ---
+
+export interface PurchaseInvoiceListItem {
+  id: string;
+  supplierName: string;
+  number: string;
+  date: string;
+  category: string;
+  total: number;
+  status: string;
+}
+
+export interface PurchaseInvoiceListResult {
+  purchaseInvoices: PurchaseInvoiceListItem[];
+  totalCount: number;
+}
+
+// --- Fetch purchase invoices with pagination and filters ---
+
+export async function getPurchaseInvoices(params: {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  supplierId?: string;
+  category?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<PurchaseInvoiceListResult> {
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 10;
+  const skip = (page - 1) * pageSize;
+
+  const where: Prisma.PurchaseInvoiceWhereInput = {};
+
+  if (params.status && params.status !== "tutti") {
+    where.status = params.status as PurchaseInvoiceStatus;
+  }
+  if (params.supplierId) {
+    where.supplierId = params.supplierId;
+  }
+  if (params.category && params.category !== "tutte") {
+    where.category = params.category as ExpenseCategory;
+  }
+  if (params.dateFrom || params.dateTo) {
+    where.date = {};
+    if (params.dateFrom) {
+      where.date.gte = new Date(params.dateFrom);
+    }
+    if (params.dateTo) {
+      where.date.lte = new Date(params.dateTo);
+    }
+  }
+
+  const [purchaseInvoices, totalCount] = await Promise.all([
+    prisma.purchaseInvoice.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { date: "desc" },
+      include: {
+        supplier: { select: { name: true } },
+        lines: {
+          include: { taxRate: { select: { rate: true } } },
+        },
+      },
+    }),
+    prisma.purchaseInvoice.count({ where }),
+  ]);
+
+  const result: PurchaseInvoiceListItem[] = purchaseInvoices.map((pi) => {
+    const total = pi.lines.reduce((sum, line) => {
+      const amount = Number(line.amount);
+      const tax = amount * (Number(line.taxRate.rate) / 100);
+      return sum + amount + tax;
+    }, 0);
+
+    return {
+      id: pi.id,
+      supplierName: pi.supplier.name,
+      number: pi.number,
+      date: pi.date.toISOString().split("T")[0],
+      category: pi.category,
+      total,
+      status: pi.status,
+    };
+  });
+
+  return { purchaseInvoices: result, totalCount };
+}
+
+// --- Update purchase invoice status ---
+
+export async function updatePurchaseInvoiceStatus(
+  id: string,
+  newStatus: string
+): Promise<PurchaseInvoiceActionResult> {
+  const validStatuses: string[] = Object.values(PurchaseInvoiceStatus);
+  if (!validStatuses.includes(newStatus)) {
+    return { success: false, message: "Stato non valido" };
+  }
+
+  await prisma.purchaseInvoice.update({
+    where: { id },
+    data: { status: newStatus as PurchaseInvoiceStatus },
+  });
+
+  return { success: true };
 }

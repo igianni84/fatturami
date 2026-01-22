@@ -333,3 +333,19 @@
   - Upload directory structure: uploads/acquisti/{timestamp}_{sanitized_filename} for purchase invoice attachments
   - The `mkdir` with `recursive: true` ensures upload directory exists before writing
 ---
+
+## 2026-01-22 - US-019
+- What was implemented: Purchase invoice list page at /acquisti showing all purchase invoices with DataTable (columns: supplier, number, date, category, total, status), colored status badges (registrata/pagata), filters by supplier dropdown, date range (from/to date inputs), category dropdown, and status buttons, action to mark as 'pagata', and pagination
+- Files changed:
+  - src/app/acquisti/actions.ts (added getPurchaseInvoices with filters/pagination/total calculation, updatePurchaseInvoiceStatus, imported Prisma types)
+  - src/app/acquisti/PurchaseInvoiceList.tsx (new - client component with DataTable, filters, status badges, mark-paid action)
+  - src/app/acquisti/page.tsx (updated - server component fetching purchase invoices and suppliers with searchParams)
+  - prd.json (US-019 passes: true)
+- **Learnings for future iterations:**
+  - Purchase invoice total is computed from lines: amount + (amount * taxRate/100) per line (uses amount field, not quantity*unitPrice)
+  - PurchaseInvoiceStatus only has two values: registrata and pagata (simpler than InvoiceStatus)
+  - Filter pattern: URL search params for all filters, navigateTo helper that updates URLSearchParams and pushes to router
+  - Category filter uses "tutte" as the "all" value (feminine form for "categorie"), status uses "tutti"
+  - Date range filter uses native HTML date inputs with onChange triggering navigation
+  - Supplier filter reuses getSuppliersForSelect() already defined for the create form
+---

@@ -1,20 +1,44 @@
-import Link from "next/link";
+import { getPurchaseInvoices, getSuppliersForSelect } from "./actions";
+import PurchaseInvoiceList from "./PurchaseInvoiceList";
 
 export const dynamic = "force-dynamic";
 
-export default function AcquistiPage() {
+export default async function AcquistiPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const page = Number(params.page) || 1;
+  const status = (params.status as string) || "tutti";
+  const supplierId = (params.supplierId as string) || "";
+  const category = (params.category as string) || "tutte";
+  const dateFrom = (params.dateFrom as string) || "";
+  const dateTo = (params.dateTo as string) || "";
+
+  const [{ purchaseInvoices, totalCount }, suppliers] = await Promise.all([
+    getPurchaseInvoices({
+      page,
+      status,
+      supplierId: supplierId || undefined,
+      category: category || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    }),
+    getSuppliersForSelect(),
+  ]);
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Fatture di acquisto</h1>
-        <Link
-          href="/acquisti/nuovo"
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          Nuova fattura acquisto
-        </Link>
-      </div>
-      <p className="text-gray-500">Nessuna fattura di acquisto registrata.</p>
-    </div>
+    <PurchaseInvoiceList
+      purchaseInvoices={purchaseInvoices}
+      totalCount={totalCount}
+      page={page}
+      suppliers={suppliers}
+      currentStatus={status}
+      currentSupplierId={supplierId}
+      currentCategory={category}
+      currentDateFrom={dateFrom}
+      currentDateTo={dateTo}
+    />
   );
 }
