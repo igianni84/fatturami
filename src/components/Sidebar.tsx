@@ -24,6 +24,14 @@ const navItems: NavItem[] = [
       { label: "Fornitori", href: "/anagrafiche/fornitori" },
     ],
   },
+  {
+    label: "Importazioni",
+    href: "/import",
+    children: [
+      { label: "CSV", href: "/import/csv" },
+      { label: "PDF", href: "/import/pdf" },
+    ],
+  },
   { label: "Fiscale", href: "/fiscale" },
   { label: "Impostazioni", href: "/impostazioni" },
 ];
