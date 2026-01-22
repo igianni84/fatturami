@@ -349,3 +349,18 @@
   - Date range filter uses native HTML date inputs with onChange triggering navigation
   - Supplier filter reuses getSuppliersForSelect() already defined for the create form
 ---
+
+## 2026-01-22 - US-020
+- What was implemented: Expense registration form at /spese/nuova with date, description, amount, category dropdown (trasporti, pasti, materiale ufficio, telecomunicazioni, altro), tax amount field, deducibile flag, file upload for receipt PDF/image, totals summary, and server action to save expense. Also created placeholder list page at /spese.
+- Files changed:
+  - src/app/spese/actions.ts (new - server actions: createExpense with Zod validation and file upload)
+  - src/app/spese/nuova/ExpenseForm.tsx (new - client component form with all fields)
+  - src/app/spese/nuova/page.tsx (new - server component page)
+  - src/app/spese/page.tsx (new - placeholder list page with "Nuova Spesa" button)
+- **Learnings for future iterations:**
+  - Expense model is simpler than PurchaseInvoice: no line items, single amount + taxAmount fields
+  - Expense categories for the form (trasporti, pasti, materiale_ufficio, telecomunicazioni, altro) are a subset of the full ExpenseCategory enum
+  - Upload directory for expenses: uploads/spese/{timestamp}_{sanitized_filename}
+  - ExpenseForm doesn't need data loaded from server (no dropdowns requiring DB data), so page.tsx is minimal
+  - The taxAmount field is separate from amount (not computed from a rate) - user enters the actual IVA amount from the receipt
+---
