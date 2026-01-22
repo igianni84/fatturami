@@ -57,6 +57,9 @@
 - Fiscal report pattern: server action queries with client.vatRegime filter, client component with period selector and useEffect for data reload
 - Quarter range: `start = new Date(year, (quarter-1)*3, 1)`, `end = new Date(year, (quarter-1)*3+3, 0, 23,59,59,999)`
 - Fiscal section uses /fiscale/page.tsx with redirect() to default subpage (/fiscale/iva)
+- PDF generation: @react-pdf/renderer with `renderToBuffer()`, wrap in `new Uint8Array()` for NextResponse, use `React.createElement()` in route handlers
+- PDF template components in `src/lib/pdf/` - InvoicePDF.tsx (template), translations.ts (multi-lang labels)
+- PDF API route pattern: GET /api/pdf/{type}?id=xxx&lang=ES|IT|EN, returns application/pdf with Content-Disposition header
 
 ---
 
@@ -532,4 +535,25 @@
   - All purchase invoice line amounts count as expenses for IRPF (not just deductible ones for VAT purposes)
   - Regular expenses only count if deductible === true
   - IRPF page follows same pattern as IVA page but uses year selector instead of quarter+year
+---
+
+## 2026-01-22 - US-030
+- What was implemented: PDF generation for invoices using @react-pdf/renderer. Professional template with company logo placeholder, company data, client info, invoice details, line items table, totals, legal disclaimers, bank details (IBAN), and notes. Multi-language support (ES, IT, EN) via language selector dropdown on the download button. API route at /api/pdf/invoice with GET params (id, lang).
+- Files changed:
+  - package.json, package-lock.json (added @react-pdf/renderer)
+  - src/lib/pdf/translations.ts (new - multi-language translation map for PDF labels)
+  - src/lib/pdf/InvoicePDF.tsx (new - React PDF document component with styled template)
+  - src/app/api/pdf/invoice/route.ts (new - GET API route that fetches invoice+company data and renders PDF)
+  - src/app/fatture/[id]/DownloadPDFButton.tsx (new - client component with language selector and download trigger)
+  - src/app/fatture/[id]/page.tsx (updated - added DownloadPDFButton to action bar)
+  - prd.json (US-030 passes: true)
+- **Learnings for future iterations:**
+  - @react-pdf/renderer uses `renderToBuffer()` for server-side PDF generation; the Buffer must be wrapped in `new Uint8Array()` for NextResponse body
+  - PDF template uses `React.createElement()` in route.ts (no JSX in non-component files) to render the document component
+  - @react-pdf/renderer StyleSheet.create() uses a CSS-like object syntax but with camelCase and limited CSS properties
+  - Font families available without registration: Helvetica, Helvetica-Bold, Courier, Times-Roman
+  - PDF template supports three document types (invoice, quote, creditNote) via the `type` field on PDFInvoiceData - reusable for US-031
+  - The PDFInvoiceData interface is generic enough to handle quotes (expiryDate) and credit notes (referenceInvoice)
+  - Download button pattern: fetch blob from API route, create object URL, trigger programmatic click on anchor element, then cleanup
+  - Company data may be null (not configured yet) - provide empty fallback object
 ---

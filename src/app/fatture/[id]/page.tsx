@@ -1,6 +1,7 @@
 import { getInvoice } from "../actions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { DownloadPDFButton } from "./DownloadPDFButton";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,8 @@ export default async function InvoiceDetailPage({
         <h1 className="text-2xl font-bold text-gray-900">
           Fattura {invoice.number}
         </h1>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          <DownloadPDFButton invoiceId={invoice.id} />
           {invoice.status === "bozza" && (
             <Link
               href={`/fatture/${invoice.id}/modifica`}

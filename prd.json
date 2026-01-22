@@ -522,7 +522,7 @@
         "Typecheck passes"
       ],
       "priority": 30,
-      "passes": false,
+      "passes": true,
       "notes": "Use @react-pdf/renderer or similar. Legal disclaimers from US-014."
     },
     {
