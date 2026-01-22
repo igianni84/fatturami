@@ -516,3 +516,20 @@
   - Sidebar children pattern works for Fiscale section same as Anagrafiche/Importazioni
   - /fiscale/page.tsx uses `redirect()` from next/navigation to default to /fiscale/iva
 ---
+
+## 2026-01-22 - US-029
+- What was implemented: IRPF income estimate page at /fiscale/irpf (Modelo 130) with year selector, quarterly breakdown table (revenue, deductible expenses, net income, pago fraccionado at 20%), annual summary cards (net income, estimated IRPF, total pagos fraccionados), IRPF bracket breakdown table using Spanish 2024 tax brackets (19/24/30/37/45%), withholdings section, and informational note about consulting a tax advisor
+- Files changed:
+  - src/app/fiscale/irpf/actions.ts (new - getIRPFReport server action with quarterly revenue/expense aggregation, IRPF bracket calculation, pago fraccionado computation)
+  - src/app/fiscale/irpf/IRPFReport.tsx (new - client component with year selector, quarterly table, summary cards, bracket table)
+  - src/app/fiscale/irpf/page.tsx (new - server component loading initial data for current year)
+  - prd.json (US-029 passes: true)
+- **Learnings for future iterations:**
+  - IRPF report is year-based (not quarterly) since brackets apply to annual income, but shows quarterly pagos fraccionados
+  - Pago fraccionado (Modelo 130) = 20% of quarterly net income (revenue - deductible expenses), floored at 0
+  - IRPF bracket calculation: iterate brackets, subtract bracket width from remaining income, compute tax at bracket rate
+  - Revenue for IRPF uses base amounts (quantity * unitPrice) without VAT - IRPF is on income, not on VAT collected
+  - All purchase invoice line amounts count as expenses for IRPF (not just deductible ones for VAT purposes)
+  - Regular expenses only count if deductible === true
+  - IRPF page follows same pattern as IVA page but uses year selector instead of quarter+year
+---

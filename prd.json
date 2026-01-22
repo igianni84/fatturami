@@ -507,7 +507,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 29,
-      "passes": false,
+      "passes": true,
       "notes": "Spanish IRPF brackets for 2024: 19% up to 12450, 24% 12450-20200, 30% 20200-35200, 37% 35200-60000, 45% 60000+."
     },
     {
