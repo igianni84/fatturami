@@ -5,28 +5,43 @@ import { DownloadPDFButton } from "@/components/DownloadPDFButton";
 
 export const dynamic = "force-dynamic";
 
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  return `${symbol} ${amount.toLocaleString("it-IT", {
+function formatCurrency(amount: number): string {
+  return `€ ${amount.toLocaleString("it-IT", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 }
 
-export default async function CreditNoteDetailPage({
+const statusColors: Record<string, string> = {
+  bozza: "bg-gray-100 text-gray-800",
+  inviato: "bg-blue-100 text-blue-800",
+  accettato: "bg-green-100 text-green-800",
+  rifiutato: "bg-red-100 text-red-800",
+  scaduto: "bg-yellow-100 text-yellow-800",
+  convertito: "bg-purple-100 text-purple-800",
+};
+
+const statusLabels: Record<string, string> = {
+  bozza: "Bozza",
+  inviato: "Inviato",
+  accettato: "Accettato",
+  rifiutato: "Rifiutato",
+  scaduto: "Scaduto",
+  convertito: "Convertito",
+};
+
+export default async function QuoteDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
 
-  const creditNote = await prisma.creditNote.findUnique({
+  const quote = await prisma.quote.findUnique({
     where: { id },
     include: {
-      invoice: {
-        include: {
-          client: { select: { name: true } },
-        },
+      client: {
+        select: { name: true, vatNumber: true, country: true },
       },
       lines: {
         include: { taxRate: { select: { name: true, rate: true } } },
@@ -34,17 +49,15 @@ export default async function CreditNoteDetailPage({
     },
   });
 
-  if (!creditNote) {
+  if (!quote) {
     notFound();
   }
 
-  const currency = creditNote.invoice.currency;
-
-  const subtotal = creditNote.lines.reduce(
+  const subtotal = quote.lines.reduce(
     (sum, line) => sum + Number(line.quantity) * Number(line.unitPrice),
     0
   );
-  const taxTotal = creditNote.lines.reduce((sum, line) => {
+  const taxTotal = quote.lines.reduce((sum, line) => {
     const lineSubtotal = Number(line.quantity) * Number(line.unitPrice);
     return sum + lineSubtotal * (Number(line.taxRate.rate) / 100);
   }, 0);
@@ -54,16 +67,16 @@ export default async function CreditNoteDetailPage({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          Nota di Credito {creditNote.number}
+          Preventivo {quote.number}
         </h1>
         <div className="flex items-center gap-3">
           <DownloadPDFButton
-            documentId={creditNote.id}
-            documentType="credit-note"
-            defaultFilename={`${creditNote.number}.pdf`}
+            documentId={quote.id}
+            documentType="quote"
+            defaultFilename={`${quote.number}.pdf`}
           />
           <Link
-            href="/note-credito"
+            href="/preventivi"
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm font-medium"
           >
             Torna alla lista
@@ -72,34 +85,58 @@ export default async function CreditNoteDetailPage({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Credit note info */}
+        {/* Quote info */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3">
-            Dettagli Nota di Credito
+            Dettagli Preventivo
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-gray-500">Numero:</dt>
-              <dd className="font-medium">{creditNote.number}</dd>
+              <dd className="font-medium">{quote.number}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-gray-500">Data:</dt>
-              <dd>{creditNote.date.toISOString().split("T")[0]}</dd>
+              <dd>{quote.date.toISOString().split("T")[0]}</dd>
             </div>
+            {quote.expiryDate && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Validità:</dt>
+                <dd>{quote.expiryDate.toISOString().split("T")[0]}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
-              <dt className="text-gray-500">Fattura di riferimento:</dt>
+              <dt className="text-gray-500">Stato:</dt>
               <dd>
-                <Link
-                  href={`/fatture/${creditNote.invoice.id}`}
-                  className="text-blue-600 hover:underline font-medium"
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[quote.status] || "bg-gray-100 text-gray-800"}`}
                 >
-                  {creditNote.invoice.number}
-                </Link>
+                  {statusLabels[quote.status] || quote.status}
+                </span>
               </dd>
             </div>
+          </dl>
+        </div>
+
+        {/* Client info */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3">
+            Cliente
+          </h2>
+          <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">Cliente:</dt>
-              <dd className="font-medium">{creditNote.invoice.client.name}</dd>
+              <dt className="text-gray-500">Nome:</dt>
+              <dd className="font-medium">{quote.client.name}</dd>
+            </div>
+            {quote.client.vatNumber && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">P.IVA/VAT:</dt>
+                <dd>{quote.client.vatNumber}</dd>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Paese:</dt>
+              <dd>{quote.client.country}</dd>
             </div>
           </dl>
         </div>
@@ -128,7 +165,7 @@ export default async function CreditNoteDetailPage({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {creditNote.lines.map((line) => {
+            {quote.lines.map((line) => {
               const lineSubtotal = Number(line.quantity) * Number(line.unitPrice);
               const lineTax = lineSubtotal * (Number(line.taxRate.rate) / 100);
               const lineTotal = lineSubtotal + lineTax;
@@ -141,13 +178,13 @@ export default async function CreditNoteDetailPage({
                     {Number(line.quantity)}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                    {formatCurrency(Number(line.unitPrice), currency)}
+                    {formatCurrency(Number(line.unitPrice))}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 text-right">
                     {line.taxRate.name} ({Number(line.taxRate.rate)}%)
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                    {formatCurrency(lineTotal, currency)}
+                    {formatCurrency(lineTotal)}
                   </td>
                 </tr>
               );
@@ -159,7 +196,7 @@ export default async function CreditNoteDetailPage({
                 Imponibile:
               </td>
               <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">
-                {formatCurrency(subtotal, currency)}
+                {formatCurrency(subtotal)}
               </td>
             </tr>
             <tr>
@@ -167,7 +204,7 @@ export default async function CreditNoteDetailPage({
                 IVA:
               </td>
               <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">
-                {formatCurrency(taxTotal, currency)}
+                {formatCurrency(taxTotal)}
               </td>
             </tr>
             <tr>
@@ -175,7 +212,7 @@ export default async function CreditNoteDetailPage({
                 Totale:
               </td>
               <td className="px-4 py-2 text-sm text-gray-900 text-right font-bold">
-                {formatCurrency(total, currency)}
+                {formatCurrency(total)}
               </td>
             </tr>
           </tfoot>
@@ -183,12 +220,12 @@ export default async function CreditNoteDetailPage({
       </div>
 
       {/* Notes */}
-      {creditNote.notes && (
+      {quote.notes && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h2 className="text-sm font-semibold text-gray-500 uppercase mb-2">
             Note
           </h2>
-          <p className="text-sm text-gray-700">{creditNote.notes}</p>
+          <p className="text-sm text-gray-700">{quote.notes}</p>
         </div>
       )}
     </div>

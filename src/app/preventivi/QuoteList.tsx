@@ -121,6 +121,12 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
         onPageChange={(newPage) => navigateTo({ page: newPage })}
         actions={(item) => (
           <div className="flex gap-2 justify-end items-center relative">
+            <Link
+              href={`/preventivi/${item.id}`}
+              className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+            >
+              Dettagli
+            </Link>
             {item.status === "bozza" && (
               <Link
                 href={`/preventivi/${item.id}/modifica`}

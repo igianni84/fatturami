@@ -60,6 +60,7 @@
 - PDF generation: @react-pdf/renderer with `renderToBuffer()`, wrap in `new Uint8Array()` for NextResponse, use `React.createElement()` in route handlers
 - PDF template components in `src/lib/pdf/` - InvoicePDF.tsx (template), translations.ts (multi-lang labels)
 - PDF API route pattern: GET /api/pdf/{type}?id=xxx&lang=ES|IT|EN, returns application/pdf with Content-Disposition header
+- Reusable DownloadPDFButton at `src/components/DownloadPDFButton.tsx` - parameterized by documentId, documentType ("invoice"|"quote"|"credit-note"), defaultFilename
 
 ---
 
@@ -556,4 +557,22 @@
   - The PDFInvoiceData interface is generic enough to handle quotes (expiryDate) and credit notes (referenceInvoice)
   - Download button pattern: fetch blob from API route, create object URL, trigger programmatic click on anchor element, then cleanup
   - Company data may be null (not configured yet) - provide empty fallback object
+---
+
+## 2026-01-22 - US-031
+- What was implemented: PDF generation for quotes and credit notes reusing the InvoicePDF template component from US-030. Created API routes at /api/pdf/quote and /api/pdf/credit-note. Created a quote detail page at /preventivi/[id] with download button. Added download button to credit note detail page. Created a shared DownloadPDFButton component. Added "Dettagli" link to quote list for navigating to the detail page.
+- Files changed:
+  - src/app/api/pdf/quote/route.ts (new - GET route fetching quote+company, rendering PDF with type "quote")
+  - src/app/api/pdf/credit-note/route.ts (new - GET route fetching credit note+invoice+company, rendering PDF with type "creditNote" and referenceInvoice)
+  - src/components/DownloadPDFButton.tsx (new - reusable client component with language selector and download trigger, parameterized by documentType)
+  - src/app/preventivi/[id]/page.tsx (new - quote detail page with line items, totals, status badge, and download button)
+  - src/app/note-credito/[id]/page.tsx (updated - added DownloadPDFButton import and component in header)
+  - src/app/preventivi/QuoteList.tsx (updated - added "Dettagli" link in actions column)
+  - prd.json (US-031 passes: true)
+- **Learnings for future iterations:**
+  - The InvoicePDF template already supports type="quote" (shows expiryDate) and type="creditNote" (shows referenceInvoice) - no template changes needed
+  - Quote uses EUR as default currency since the Quote model doesn't store currency (unlike Invoice)
+  - Credit note inherits currency and disclaimer from its parent invoice record
+  - A reusable DownloadPDFButton component (src/components/DownloadPDFButton.tsx) can serve all document types via the documentType prop
+  - Quote detail page needed to be created since it didn't exist (unlike invoice and credit note which had existing detail pages)
 ---
