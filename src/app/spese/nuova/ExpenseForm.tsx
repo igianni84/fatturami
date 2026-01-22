@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExpenseFormData, createExpense } from "../actions";
+import type { ExtractionResult } from "@/app/api/extract/route";
 
 const CATEGORY_LABELS: Record<string, string> = {
   trasporti: "Trasporti",
@@ -24,6 +25,85 @@ export default function ExpenseForm() {
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+
+  async function handleFileChange(selectedFile: File | null) {
+    setFile(selectedFile);
+    if (!selectedFile) return;
+
+    setExtracting(true);
+    setExtractionMessage(null);
+    setAutoFilledFields(new Set());
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        setExtractionMessage(`Estrazione fallita: ${err.error || "Errore sconosciuto"}`);
+        setExtracting(false);
+        return;
+      }
+
+      const result: ExtractionResult = await response.json();
+      const filled = new Set<string>();
+
+      // Auto-fill date
+      if (result.date) {
+        setDate(result.date);
+        filled.add("date");
+      }
+
+      // Auto-fill description from supplier name or first line item
+      if (result.supplierName) {
+        setDescription(result.supplierName);
+        filled.add("description");
+      } else if (result.lineItems.length > 0 && result.lineItems[0].description) {
+        setDescription(result.lineItems[0].description);
+        filled.add("description");
+      }
+
+      // Auto-fill amount (subtotal or sum of line items)
+      if (result.subtotal != null && result.subtotal > 0) {
+        setAmount(result.subtotal);
+        filled.add("amount");
+      } else if (result.total != null && result.total > 0 && result.taxAmount != null) {
+        setAmount(result.total - result.taxAmount);
+        filled.add("amount");
+      }
+
+      // Auto-fill tax amount
+      if (result.taxAmount != null && result.taxAmount > 0) {
+        setTaxAmount(result.taxAmount);
+        filled.add("taxAmount");
+      }
+
+      setAutoFilledFields(filled);
+      setExtractionMessage(
+        filled.size > 0
+          ? `Dati estratti automaticamente (${filled.size} campi compilati)`
+          : "Nessun dato estratto dal documento"
+      );
+    } catch {
+      setExtractionMessage("Errore durante l'estrazione AI");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  function fieldHighlight(fieldName: string) {
+    return autoFilledFields.has(fieldName)
+      ? "ring-2 ring-blue-300 bg-blue-50"
+      : "";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,7 +141,7 @@ export default function ExpenseForm() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("date")}`}
           />
           {errors.date && (
             <p className="text-red-600 text-sm mt-1">{errors.date[0]}</p>
@@ -99,7 +179,7 @@ export default function ExpenseForm() {
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2"
+          className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("description")}`}
           placeholder="Descrizione della spesa"
         />
         {errors.description && (
@@ -119,7 +199,7 @@ export default function ExpenseForm() {
             min="0"
             value={amount || ""}
             onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("amount")}`}
             placeholder="0.00"
           />
           {errors.amount && (
@@ -137,7 +217,7 @@ export default function ExpenseForm() {
             min="0"
             value={taxAmount || ""}
             onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("taxAmount")}`}
             placeholder="0.00"
           />
           {errors.taxAmount && (
@@ -161,7 +241,7 @@ export default function ExpenseForm() {
         </label>
       </div>
 
-      {/* File upload */}
+      {/* File upload with AI extraction */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Allegato (PDF/immagine)
@@ -169,12 +249,24 @@ export default function ExpenseForm() {
         <input
           type="file"
           accept=".pdf,.jpg,.jpeg,.png"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
           className="w-full border border-gray-300 rounded-md px-3 py-2"
+          disabled={extracting}
         />
         {file && (
           <p className="text-sm text-gray-500 mt-1">
             File selezionato: {file.name}
+          </p>
+        )}
+        {extracting && (
+          <p className="text-sm text-blue-600 mt-1 flex items-center gap-2">
+            <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+            Estrazione dati in corso...
+          </p>
+        )}
+        {extractionMessage && !extracting && (
+          <p className={`text-sm mt-1 ${autoFilledFields.size > 0 ? "text-green-600" : "text-amber-600"}`}>
+            {extractionMessage}
           </p>
         )}
       </div>

@@ -8,6 +8,7 @@ import {
   PurchaseInvoiceFormData,
   createPurchaseInvoice,
 } from "../actions";
+import type { ExtractionResult } from "@/app/api/extract/route";
 
 interface LineItem {
   description: string;
@@ -56,6 +57,96 @@ export default function PurchaseInvoiceForm({
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+  const [unmatchedSupplier, setUnmatchedSupplier] = useState<string | null>(null);
+
+  // Handle file upload with AI extraction
+  async function handleFileChange(selectedFile: File | null) {
+    setFile(selectedFile);
+    setUnmatchedSupplier(null);
+    if (!selectedFile) return;
+
+    setExtracting(true);
+    setExtractionMessage(null);
+    setAutoFilledFields(new Set());
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        setExtractionMessage(`Estrazione fallita: ${err.error || "Errore sconosciuto"}`);
+        setExtracting(false);
+        return;
+      }
+
+      const result: ExtractionResult = await response.json();
+      const filled = new Set<string>();
+
+      // Auto-select matched supplier
+      if (result.matchedSupplierId) {
+        setSupplierId(result.matchedSupplierId);
+        const matched = suppliers.find((s) => s.id === result.matchedSupplierId);
+        if (matched?.expenseCategory) {
+          setCategory(matched.expenseCategory);
+          filled.add("category");
+        }
+        filled.add("supplierId");
+        setUnmatchedSupplier(null);
+      } else if (result.supplierName) {
+        setUnmatchedSupplier(result.supplierName);
+      }
+
+      // Auto-fill invoice number
+      if (result.invoiceNumber) {
+        setNumber(result.invoiceNumber);
+        filled.add("number");
+      }
+
+      // Auto-fill date
+      if (result.date) {
+        setDate(result.date);
+        filled.add("date");
+      }
+
+      // Auto-fill line items
+      if (result.lineItems && result.lineItems.length > 0) {
+        const newLines: LineItem[] = result.lineItems.map((item) => {
+          // Try to match tax rate
+          const matchedRate = taxRates.find(
+            (r) => Math.abs(r.rate - item.taxRate) < 0.5
+          );
+          return {
+            description: item.description || "",
+            amount: item.amount || 0,
+            taxRateId: matchedRate?.id || defaultTaxRateId,
+            deductible: true,
+          };
+        });
+        setLines(newLines);
+        filled.add("lines");
+      }
+
+      setAutoFilledFields(filled);
+      setExtractionMessage(
+        filled.size > 0
+          ? `Dati estratti automaticamente (${filled.size} campi compilati)`
+          : "Nessun dato estratto dal documento"
+      );
+    } catch {
+      setExtractionMessage("Errore durante l'estrazione AI");
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   // Auto-set category when supplier changes
   function handleSupplierChange(id: string) {
@@ -90,6 +181,12 @@ export default function PurchaseInvoiceForm({
     return sum + (line.amount * (rate?.rate || 0)) / 100;
   }, 0);
   const total = subtotal + taxTotal;
+
+  function fieldHighlight(fieldName: string) {
+    return autoFilledFields.has(fieldName)
+      ? "ring-2 ring-blue-300 bg-blue-50"
+      : "";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,7 +229,7 @@ export default function PurchaseInvoiceForm({
           <select
             value={supplierId}
             onChange={(e) => handleSupplierChange(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("supplierId")}`}
           >
             <option value="">Seleziona fornitore</option>
             {suppliers.map((s) => (
@@ -155,7 +252,7 @@ export default function PurchaseInvoiceForm({
             type="text"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("number")}`}
             placeholder="Es. FAT-2024-001"
           />
           {errors.number && (
@@ -172,7 +269,7 @@ export default function PurchaseInvoiceForm({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("date")}`}
           />
           {errors.date && (
             <p className="text-red-600 text-sm mt-1">{errors.date[0]}</p>
@@ -187,7 +284,7 @@ export default function PurchaseInvoiceForm({
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("category")}`}
           >
             <option value="">Seleziona categoria</option>
             {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -202,7 +299,7 @@ export default function PurchaseInvoiceForm({
         </div>
       </div>
 
-      {/* File upload */}
+      {/* File upload with AI extraction */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Allegato (PDF/immagine)
@@ -210,19 +307,45 @@ export default function PurchaseInvoiceForm({
         <input
           type="file"
           accept=".pdf,.jpg,.jpeg,.png"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
           className="w-full border border-gray-300 rounded-md px-3 py-2"
+          disabled={extracting}
         />
         {file && (
           <p className="text-sm text-gray-500 mt-1">
             File selezionato: {file.name}
           </p>
         )}
+        {extracting && (
+          <p className="text-sm text-blue-600 mt-1 flex items-center gap-2">
+            <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+            Estrazione dati in corso...
+          </p>
+        )}
+        {extractionMessage && !extracting && (
+          <p className={`text-sm mt-1 ${autoFilledFields.size > 0 ? "text-green-600" : "text-amber-600"}`}>
+            {extractionMessage}
+          </p>
+        )}
+        {unmatchedSupplier && (
+          <p className="text-sm text-amber-600 mt-1">
+            Fornitore rilevato: &quot;{unmatchedSupplier}&quot; (non trovato in anagrafica -{" "}
+            <a href="/anagrafiche/fornitori/nuovo" className="underline text-blue-600">
+              crea nuovo fornitore
+            </a>
+            )
+          </p>
+        )}
       </div>
 
       {/* Line items */}
-      <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-3">Righe</h3>
+      <div className={autoFilledFields.has("lines") ? "ring-2 ring-blue-300 rounded-md p-2" : ""}>
+        <h3 className="text-lg font-medium text-gray-900 mb-3">
+          Righe
+          {autoFilledFields.has("lines") && (
+            <span className="ml-2 text-xs font-normal text-blue-600">(compilate da AI)</span>
+          )}
+        </h3>
         {errors.lines && (
           <p className="text-red-600 text-sm mb-2">{errors.lines[0]}</p>
         )}

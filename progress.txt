@@ -399,3 +399,19 @@
   - ExtractionResult type exported from the route for use by consumer components (US-023)
   - Next.js API routes support FormData natively via `request.formData()`
 ---
+
+## 2026-01-22 - US-023
+- What was implemented: AI extraction integration in purchase invoice and expense forms - when a file is uploaded, the /api/extract endpoint is called to extract data using Claude Vision, form fields are auto-filled with extracted data, auto-filled fields are highlighted with a blue ring, matched suppliers are auto-selected in dropdown, unmatched suppliers show a suggestion to create new, and users can manually correct any field before saving
+- Files changed:
+  - src/app/acquisti/nuovo/PurchaseInvoiceForm.tsx (added AI extraction on file upload, auto-fill for supplier/number/date/category/lines, field highlighting, unmatched supplier warning with link to create new)
+  - src/app/spese/nuova/ExpenseForm.tsx (added AI extraction on file upload, auto-fill for date/description/amount/taxAmount, field highlighting)
+  - prd.json (US-023 passes: true)
+- **Learnings for future iterations:**
+  - Import `type` from route.ts works for sharing ExtractionResult interface between API route and client components: `import type { ExtractionResult } from "@/app/api/extract/route"`
+  - AI extraction integration pattern: handleFileChange triggers fetch to /api/extract, then maps result fields to form state, tracks auto-filled fields in a Set for highlighting
+  - Field highlighting pattern: `ring-2 ring-blue-300 bg-blue-50` classes conditionally applied based on Set membership
+  - For tax rate matching in purchase invoice lines, use approximate match: `Math.abs(r.rate - item.taxRate) < 0.5` to handle float precision
+  - Expense form maps AI result differently: supplierName → description, subtotal → amount, taxAmount → taxAmount (no line items)
+  - Unmatched supplier pattern: show amber warning with supplier name and link to /anagrafiche/fornitori/nuovo for creating a new supplier
+  - Loading state during extraction: disable file input + show spinner animation with `animate-spin` on a border-based circle
+---
