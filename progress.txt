@@ -364,3 +364,17 @@
   - ExpenseForm doesn't need data loaded from server (no dropdowns requiring DB data), so page.tsx is minimal
   - The taxAmount field is separate from amount (not computed from a rate) - user enters the actual IVA amount from the receipt
 ---
+
+## 2026-01-22 - US-021
+- What was implemented: Expense list page at /spese showing all expenses with DataTable (columns: date, description, category, amount, deductible flag badge), filters (date range, category dropdown, deductible/all buttons), total amount displayed for filtered results, and pagination
+- Files changed:
+  - src/app/spese/actions.ts (added getExpenses server action with filters, pagination, aggregate total, ExpenseListItem/ExpenseListResult types)
+  - src/app/spese/ExpenseList.tsx (new - client component with DataTable, filters, total display)
+  - src/app/spese/page.tsx (updated - server component reading searchParams and calling getExpenses)
+- **Learnings for future iterations:**
+  - Prisma aggregate `_sum` returns Decimal|null - use `Number(result._sum.field || 0)` for safe conversion
+  - Expense list is simpler than PurchaseInvoice list: no status management, no supplier filter, but adds deductible filter
+  - Deductible filter uses "si"/"no" string values in URL params, mapped to boolean in the where clause
+  - Total amount display uses aggregate query matching the same `where` clause as the list query for consistency
+  - Category labels map covers all ExpenseCategory enum values (not just the subset used in the expense form)
+---
