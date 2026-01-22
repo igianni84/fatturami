@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { ExtractionResult } from "@/app/api/extract/route";
+import type { ExtractionResult } from "@/app/(main)/api/extract/route";
 import { importPDFBatch, type ReviewItem, type ReviewLineItem, type ImportPDFResult } from "./actions";
 
 type Step = "upload" | "processing" | "review" | "importing" | "result";

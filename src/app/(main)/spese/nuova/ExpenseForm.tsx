@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExpenseFormData, createExpense } from "../actions";
-import type { ExtractionResult } from "@/app/api/extract/route";
+import type { ExtractionResult } from "@/app/(main)/api/extract/route";
 
 const CATEGORY_LABELS: Record<string, string> = {
   trasporti: "Trasporti",

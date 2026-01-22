@@ -1,4 +1,5 @@
 import { PrismaClient, TaxRateType } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -58,6 +59,25 @@ async function main() {
   }
 
   console.log("Seed completed: Tax rates created/updated successfully.");
+
+  // Create initial user from environment variables or defaults
+  const userEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+  const userPassword = process.env.ADMIN_PASSWORD || "password123";
+  const hashedPassword = await bcrypt.hash(userPassword, 12);
+
+  await prisma.user.upsert({
+    where: { email: userEmail },
+    update: {
+      password: hashedPassword,
+    },
+    create: {
+      id: "seed-admin-user",
+      email: userEmail,
+      password: hashedPassword,
+    },
+  });
+
+  console.log(`Seed completed: Admin user created/updated (${userEmail}).`);
 }
 
 main()

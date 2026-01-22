@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logout } from "@/app/(main)/logout/actions";
 
 interface NavItem {
   label: string;
@@ -96,6 +97,16 @@ export default function Sidebar() {
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
+      <div className="border-t border-gray-700 p-4">
+        <form action={logout}>
+          <button
+            type="submit"
+            className="w-full rounded-md px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+          >
+            Esci
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

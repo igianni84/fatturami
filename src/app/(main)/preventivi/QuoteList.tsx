@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
 import { QuoteListItem, updateQuoteStatus } from "./actions";
-import { convertQuoteToInvoice } from "@/app/fatture/actions";
+import { convertQuoteToInvoice } from "@/app/(main)/fatture/actions";
 import Link from "next/link";
 
 interface QuoteListProps {

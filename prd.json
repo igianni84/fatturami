@@ -555,7 +555,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 32,
-      "passes": false,
+      "passes": true,
       "notes": "Single user system. Create initial user via seed or env variable."
     },
     {

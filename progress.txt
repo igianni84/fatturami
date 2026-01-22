@@ -61,6 +61,11 @@
 - PDF template components in `src/lib/pdf/` - InvoicePDF.tsx (template), translations.ts (multi-lang labels)
 - PDF API route pattern: GET /api/pdf/{type}?id=xxx&lang=ES|IT|EN, returns application/pdf with Content-Disposition header
 - Reusable DownloadPDFButton at `src/components/DownloadPDFButton.tsx` - parameterized by documentId, documentType ("invoice"|"quote"|"credit-note"), defaultFilename
+- Authentication: JWT (jose library) + bcryptjs password hashing, httpOnly cookie "auth-token", middleware at src/middleware.ts
+- Route group pattern: `(main)` group contains all authenticated pages with sidebar layout; `/login` stays at root level without sidebar
+- Cross-group imports use `@/app/(main)/...` path (route groups are transparent in URLs but NOT in file imports)
+- Auth utility at `src/lib/auth.ts`: hashPassword, verifyPassword, createToken, verifyToken, setAuthCookie, removeAuthCookie, getCurrentUser
+- Logout pattern: server action in `src/app/(main)/logout/actions.ts` using removeAuthCookie + redirect("/login")
 
 ---
 
@@ -575,4 +580,34 @@
   - Credit note inherits currency and disclaimer from its parent invoice record
   - A reusable DownloadPDFButton component (src/components/DownloadPDFButton.tsx) can serve all document types via the documentType prop
   - Quote detail page needed to be created since it didn't exist (unlike invoice and credit note which had existing detail pages)
+---
+
+## 2026-01-22 - US-032
+- What was implemented: Authentication system with login page at /login (email/password form), bcryptjs password hashing, JWT session management via httpOnly cookie using jose library, middleware protecting all routes except /login, logout button in sidebar, and initial user seeding from environment variables (ADMIN_EMAIL, ADMIN_PASSWORD). Restructured app to use (main) route group for authenticated pages with sidebar layout, keeping /login at the root level without sidebar.
+- Files changed:
+  - prisma/schema.prisma (added User model with email unique, password, timestamps)
+  - prisma/migrations/20260122100000_add_user_model/migration.sql (User table creation)
+  - prisma/seed.ts (added admin user seeding with bcrypt hashed password from env vars)
+  - src/lib/auth.ts (new - JWT token creation/verification with jose, password hashing, cookie management)
+  - src/middleware.ts (new - route protection checking auth-token cookie, redirects to /login)
+  - src/app/login/page.tsx (new - login page)
+  - src/app/login/LoginForm.tsx (new - client form component with email/password, error handling)
+  - src/app/login/actions.ts (new - login server action with Zod validation, user lookup, password verify, token creation)
+  - src/app/(main)/layout.tsx (new - authenticated layout with Sidebar)
+  - src/app/(main)/logout/actions.ts (new - logout server action removing cookie and redirecting)
+  - src/app/layout.tsx (updated - removed Sidebar, now just html/body shell)
+  - src/components/Sidebar.tsx (updated - added logout button at bottom)
+  - src/app/(main)/* (moved all app pages into route group)
+  - package.json, package-lock.json (added bcryptjs, jose, @types/bcryptjs)
+  - .env.example (added JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD)
+  - prd.json (US-032 passes: true)
+- **Learnings for future iterations:**
+  - Route groups like (main) are transparent in URL routing but NOT in TypeScript imports - use `@/app/(main)/...` for cross-file imports
+  - Moving pages into a route group requires updating all cross-module imports that reference those paths
+  - jose library works in both Node.js and Edge runtime (unlike jsonwebtoken which is Node-only)
+  - Next.js middleware.ts at src/ root catches all requests - use matcher config to exclude static files
+  - Login page should NOT be in the (main) group since it needs its own layout (no sidebar)
+  - Logout as server action with form element allows native form submission without JavaScript
+  - bcryptjs is the pure JS implementation of bcrypt - no native compilation needed for Docker
+  - The `cookies()` API in Next.js 16 returns a Promise that must be awaited
 ---

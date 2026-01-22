@@ -8,7 +8,7 @@ import {
   PurchaseInvoiceFormData,
   createPurchaseInvoice,
 } from "../actions";
-import type { ExtractionResult } from "@/app/api/extract/route";
+import type { ExtractionResult } from "@/app/(main)/api/extract/route";
 
 interface LineItem {
   description: string;
