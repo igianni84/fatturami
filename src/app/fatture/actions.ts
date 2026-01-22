@@ -381,3 +381,60 @@ export async function getDefaultTaxRateForClient(
     vatRegime: client.vatRegime,
   };
 }
+
+// --- Convert quote to invoice ---
+
+export async function convertQuoteToInvoice(
+  quoteId: string
+): Promise<{ success: boolean; invoiceId?: string; message?: string }> {
+  // Fetch quote with lines and client info
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    include: {
+      client: { select: { id: true, vatRegime: true, vatNumber: true, currency: true } },
+      lines: { select: { description: true, quantity: true, unitPrice: true, taxRateId: true } },
+    },
+  });
+
+  if (!quote) {
+    return { success: false, message: "Preventivo non trovato" };
+  }
+
+  if (quote.status !== "accettato") {
+    return { success: false, message: "Solo i preventivi accettati possono essere convertiti" };
+  }
+
+  // Generate disclaimer and invoice number
+  const disclaimer = generateDisclaimer(quote.client.vatRegime, !!quote.client.vatNumber);
+  const number = await generateInvoiceNumber();
+
+  // Create invoice from quote data
+  const invoice = await prisma.invoice.create({
+    data: {
+      number,
+      clientId: quote.client.id,
+      date: new Date(),
+      status: "bozza",
+      currency: quote.client.currency || "EUR",
+      exchangeRate: new Decimal(1),
+      disclaimer,
+      notes: quote.notes || "",
+      lines: {
+        create: quote.lines.map((line) => ({
+          description: line.description,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          taxRateId: line.taxRateId,
+        })),
+      },
+    },
+  });
+
+  // Update quote status to convertito
+  await prisma.quote.update({
+    where: { id: quoteId },
+    data: { status: "convertito" },
+  });
+
+  return { success: true, invoiceId: invoice.id };
+}

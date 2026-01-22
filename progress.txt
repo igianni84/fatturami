@@ -267,3 +267,17 @@
   - IntraUE without valid VAT should also use the standard Spanish disclaimer (since 21% IVA applies)
   - Detail pages reuse statusLabels/statusColors patterns from list pages
 ---
+
+## 2026-01-22 - US-015
+- What was implemented: Convert quote to invoice functionality - "Converti in fattura" button visible only on quotes with status "accettato", creates a new invoice pre-filled with quote data (client, lines, notes), generates next progressive invoice number, updates quote status to "convertito", and redirects to the new invoice detail page
+- Files changed:
+  - src/app/fatture/actions.ts (added convertQuoteToInvoice server action)
+  - src/app/preventivi/QuoteList.tsx (added convert button for accettato quotes, import of convertQuoteToInvoice, convertito status label/color, loading state during conversion)
+  - prd.json (US-015 passes: true)
+- **Learnings for future iterations:**
+  - Quote-to-invoice conversion reuses existing generateInvoiceNumber and generateDisclaimer helpers from fatture/actions.ts
+  - QuoteLine and InvoiceLine share the same structure (description, quantity, unitPrice, taxRateId) so lines can be copied directly
+  - The "convertito" status was already defined in the QuoteStatus enum in schema.prisma but not shown in the UI - added to statusLabels/statusColors
+  - Cross-module server action import works fine: client component imports from "@/app/fatture/actions" while being in preventivi
+  - Conversion sets invoice date to current date (new Date()) and currency from client's preferred currency
+---

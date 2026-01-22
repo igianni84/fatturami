@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
 import { QuoteListItem, updateQuoteStatus } from "./actions";
+import { convertQuoteToInvoice } from "@/app/fatture/actions";
 import Link from "next/link";
 
 interface QuoteListProps {
@@ -18,6 +19,7 @@ const statusColors: Record<string, string> = {
   accettato: "bg-green-100 text-green-800",
   rifiutato: "bg-red-100 text-red-800",
   scaduto: "bg-yellow-100 text-yellow-800",
+  convertito: "bg-purple-100 text-purple-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -26,6 +28,7 @@ const statusLabels: Record<string, string> = {
   accettato: "Accettato",
   rifiutato: "Rifiutato",
   scaduto: "Scaduto",
+  convertito: "Convertito",
 };
 
 const statusTransitions: Record<string, string[]> = {
@@ -47,6 +50,7 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
   const router = useRouter();
   const searchParams = useSearchParams();
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
+  const [converting, setConverting] = useState<string | null>(null);
 
   const navigateTo = (params: { page?: number }) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -60,6 +64,17 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
     setStatusMenuId(null);
     await updateQuoteStatus(quoteId, newStatus);
     router.refresh();
+  };
+
+  const handleConvert = async (quoteId: string) => {
+    setConverting(quoteId);
+    const result = await convertQuoteToInvoice(quoteId);
+    if (result.success && result.invoiceId) {
+      router.push(`/fatture/${result.invoiceId}`);
+    } else {
+      setConverting(null);
+      alert(result.message || "Errore durante la conversione");
+    }
   };
 
   const columns: Column<QuoteListItem>[] = [
@@ -113,6 +128,15 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
               >
                 Modifica
               </Link>
+            )}
+            {item.status === "accettato" && (
+              <button
+                onClick={() => handleConvert(item.id)}
+                disabled={converting === item.id}
+                className="text-purple-600 hover:text-purple-800 text-sm font-medium disabled:opacity-50"
+              >
+                {converting === item.id ? "Conversione..." : "Converti in fattura"}
+              </button>
             )}
             {statusTransitions[item.status]?.length > 0 && (
               <div className="relative">
