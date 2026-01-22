@@ -43,6 +43,8 @@
 - Invoice disclaimer auto-generation: stored on Invoice.disclaimer field, determined by client vatRegime at creation time
 - Detail page pattern: server component with `notFound()` for missing records, `export const dynamic = "force-dynamic"`, grid layout for info cards
 - "Create from parent" route pattern: /resource/nuova/[parentId] for child entities (e.g., credit note from invoice)
+- File upload pattern: client passes File object to server action, server uses fs/promises writeFile to uploads/{module}/{timestamp}_{name}
+- PurchaseInvoiceLine uses `amount` (single field) instead of quantity*unitPrice; also has `deductible` boolean flag
 
 ---
 
@@ -314,4 +316,20 @@
   - Credit note currency comes from the related invoice (cn.invoice.currency) - not stored on the credit note itself
   - Credit note list is simpler than invoice/quote lists - no status management needed (credit notes don't have status changes)
   - Related invoice column uses a Link component to navigate to the parent invoice detail page
+---
+
+## 2026-01-22 - US-018
+- What was implemented: Purchase invoice registration form at /acquisti/nuovo with supplier selection (auto-sets expense category), supplier invoice number, date, expense category dropdown, file upload for PDF/image, dynamic line items (description, amount, tax rate, deductible flag), automatic totals calculation, and save with status 'registrata'. Also created placeholder list page at /acquisti.
+- Files changed:
+  - src/app/acquisti/actions.ts (new - server actions: getSuppliersForSelect, getTaxRates, createPurchaseInvoice with file upload support)
+  - src/app/acquisti/nuovo/PurchaseInvoiceForm.tsx (new - client component form with dynamic lines, file upload, deductible flags)
+  - src/app/acquisti/nuovo/page.tsx (new - server component loading suppliers and tax rates)
+  - src/app/acquisti/page.tsx (new - placeholder list page with "Nuova fattura acquisto" button)
+- **Learnings for future iterations:**
+  - File upload pattern: use native File API in client component, pass File object to server action, write with fs/promises to uploads/ directory
+  - PurchaseInvoiceLine uses `amount` (single field) instead of quantity*unitPrice (different from InvoiceLine/QuoteLine)
+  - PurchaseInvoiceLine has a `deductible` boolean flag for VAT deductibility per line
+  - Supplier dropdown can include expenseCategory to auto-populate the category field when supplier is selected
+  - Upload directory structure: uploads/acquisti/{timestamp}_{sanitized_filename} for purchase invoice attachments
+  - The `mkdir` with `recursive: true` ensures upload directory exists before writing
 ---
