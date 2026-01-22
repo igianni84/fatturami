@@ -301,3 +301,17 @@
   - Credit note detail page reads currency from the related invoice record
   - Button visibility condition uses multiple status OR checks: `invoice.status === "emessa" || invoice.status === "inviata" || invoice.status === "pagata"`
 ---
+
+## 2026-01-22 - US-017
+- What was implemented: Credit note list page at /note-credito showing all credit notes with DataTable (columns: number, related invoice with link, client, date, total), link to view detail page, and pagination
+- Files changed:
+  - src/app/note-credito/actions.ts (added getCreditNotes server action with CreditNoteListItem type, pagination, and total calculation)
+  - src/app/note-credito/CreditNoteList.tsx (new - client component with DataTable, invoice link, currency formatting, detail link)
+  - src/app/note-credito/page.tsx (updated - server component reading searchParams and calling getCreditNotes)
+  - prd.json (US-017 passes: true)
+- **Learnings for future iterations:**
+  - Credit note total is computed from lines (same pattern as invoice/quote totals) since it's not stored on the model
+  - Credit note currency comes from the related invoice (cn.invoice.currency) - not stored on the credit note itself
+  - Credit note list is simpler than invoice/quote lists - no status management needed (credit notes don't have status changes)
+  - Related invoice column uses a Link component to navigate to the parent invoice detail page
+---
