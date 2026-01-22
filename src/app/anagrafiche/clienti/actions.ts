@@ -170,6 +170,17 @@ export async function createClient(
   return { success: true, message: "Cliente creato con successo" };
 }
 
+// --- Delete client (soft delete) ---
+
+export async function deleteClient(id: string): Promise<ClientActionResult> {
+  await prisma.client.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+
+  return { success: true, message: "Cliente eliminato con successo" };
+}
+
 // --- Update client ---
 
 export async function updateClient(
