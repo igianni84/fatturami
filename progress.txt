@@ -51,6 +51,8 @@
 - CSV parsing: use `papaparse` with `header: true` for column-name-keyed row objects
 - Multi-step wizard pattern: `step` state variable controls render (upload → mapping → preview → importing → result)
 - Sidebar navigation sections with children: `{ label, href, children: [{ label, href }] }` (see Importazioni)
+- Batch processing pattern: sequential loop with status array for progress tracking; avoid Promise.all for API-rate-limited operations
+- ExtractionResult from /api/extract maps to ReviewItem for editable review before import
 
 ---
 
@@ -438,4 +440,22 @@
   - Auto-creation of clients/suppliers uses a Map for deduplication within the import batch
   - Duplicate invoice detection: check `prisma.invoice.findUnique({ where: { number } })` before creating
   - Import type toggle (issued/received) resets the entire wizard state when changed
+---
+
+## 2026-01-22 - US-025
+- What was implemented: Batch PDF import page at /import/pdf with multi-file upload (PDF, JPG, PNG, WebP, GIF), sequential AI extraction processing with progress bar, review page showing all extracted data with expandable edit forms per file, editable line items (description, amount, tax rate, deductible flag), supplier/invoice number/date/category editing, confirm button to import all reviewed items as purchase invoices, auto-creation of new suppliers, and detailed result report
+- Files changed:
+  - src/app/import/pdf/page.tsx (new - server component page with dynamic rendering)
+  - src/app/import/pdf/PDFBatchImporter.tsx (new - client component with multi-step flow: upload, processing, review, importing, result)
+  - src/app/import/pdf/actions.ts (new - server action importPDFBatch with supplier creation, duplicate detection, purchase invoice creation)
+  - prd.json (US-025 passes: true)
+- **Learnings for future iterations:**
+  - Sequential file processing pattern: use for loop with await inside (not Promise.all) to avoid API rate limits
+  - Progress tracking pattern: array of FileProcessingStatus objects updated via spread copy on each iteration for React re-render
+  - Review item pattern: ExtractionResult mapped to editable ReviewItem with additional fields (category, deductible per line)
+  - Expandable card pattern: editingIndex state controls which item shows the edit form; click header to toggle
+  - When no lines are extracted from AI, create a fallback line from subtotal/total in the import action
+  - Duplicate detection for PDF imports: check by supplierId + invoiceNumber before creating
+  - File validation on client side: check file.type against allowedTypes array before adding to selection
+  - Multi-file input: use `multiple` attribute on input[type=file] for batch selection
 ---

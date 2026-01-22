@@ -437,7 +437,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 25,
-      "passes": false,
+      "passes": true,
       "notes": "Process files sequentially to avoid API rate limits."
     },
     {
