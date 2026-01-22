@@ -49,6 +49,90 @@ async function uploadFile(file: File): Promise<string> {
 
 // --- Create expense ---
 
+// --- Types for expense list ---
+
+export interface ExpenseListItem {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  amount: number;
+  deductible: boolean;
+}
+
+export interface ExpenseListResult {
+  expenses: ExpenseListItem[];
+  totalCount: number;
+  totalAmount: number;
+}
+
+// --- Fetch expenses with pagination and filters ---
+
+export async function getExpenses(params: {
+  page?: number;
+  pageSize?: number;
+  category?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  deductible?: string;
+}): Promise<ExpenseListResult> {
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 10;
+  const skip = (page - 1) * pageSize;
+
+  const where: Record<string, unknown> = {};
+
+  if (params.category && params.category !== "tutte") {
+    where.category = params.category as ExpenseCategory;
+  }
+  if (params.dateFrom || params.dateTo) {
+    const dateFilter: Record<string, Date> = {};
+    if (params.dateFrom) {
+      dateFilter.gte = new Date(params.dateFrom);
+    }
+    if (params.dateTo) {
+      dateFilter.lte = new Date(params.dateTo);
+    }
+    where.date = dateFilter;
+  }
+  if (params.deductible === "si") {
+    where.deductible = true;
+  } else if (params.deductible === "no") {
+    where.deductible = false;
+  }
+
+  const [expenses, totalCount, totalAgg] = await Promise.all([
+    prisma.expense.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { date: "desc" },
+    }),
+    prisma.expense.count({ where }),
+    prisma.expense.aggregate({
+      where,
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const result: ExpenseListItem[] = expenses.map((e) => ({
+    id: e.id,
+    date: e.date.toISOString().split("T")[0],
+    description: e.description,
+    category: e.category,
+    amount: Number(e.amount),
+    deductible: e.deductible,
+  }));
+
+  return {
+    expenses: result,
+    totalCount,
+    totalAmount: Number(totalAgg._sum.amount || 0),
+  };
+}
+
+// --- Create expense ---
+
 export async function createExpense(
   data: ExpenseFormData,
   file?: File | null

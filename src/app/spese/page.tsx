@@ -1,20 +1,39 @@
-import Link from "next/link";
+import { getExpenses } from "./actions";
+import ExpenseList from "./ExpenseList";
 
 export const dynamic = "force-dynamic";
 
-export default function SpesePage() {
+export default async function SpesePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const category = params.category || "tutte";
+  const dateFrom = params.dateFrom || "";
+  const dateTo = params.dateTo || "";
+  const deductible = params.deductible || "tutti";
+
+  const { expenses, totalCount, totalAmount } = await getExpenses({
+    page,
+    pageSize: 10,
+    category: category !== "tutte" ? category : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    deductible: deductible !== "tutti" ? deductible : undefined,
+  });
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Spese</h1>
-        <Link
-          href="/spese/nuova"
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          Nuova Spesa
-        </Link>
-      </div>
-      <p className="text-gray-500">Nessuna spesa registrata.</p>
-    </div>
+    <ExpenseList
+      expenses={expenses}
+      totalCount={totalCount}
+      totalAmount={totalAmount}
+      page={page}
+      currentCategory={category}
+      currentDateFrom={dateFrom}
+      currentDateTo={dateTo}
+      currentDeductible={deductible}
+    />
   );
 }
