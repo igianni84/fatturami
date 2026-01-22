@@ -1,0 +1,15 @@
+## Codebase Patterns
+- Stack: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Prisma ORM, PostgreSQL
+- Use Zod for form and API validation
+- UI language: Italian
+- Document generation languages: ES, IT, EN
+- Docker Compose for deployment (app + PostgreSQL)
+- File storage: local filesystem (Docker volume)
+- Single-user system (no multi-tenancy)
+- Monetary amounts stored as Decimal in Prisma
+- Status fields as Prisma enums
+- Soft delete pattern: deletedAt timestamp field
+- Progressive numbering: PREFIX-YYYY-NNN format
+- VAT regime auto-detection based on client country
+
+---

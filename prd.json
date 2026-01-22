@@ -1,0 +1,594 @@
+{
+  "project": "InvoicingSystem",
+  "branchName": "ralph/invoicing-system",
+  "description": "Sistema di Fatturazione Internazionale - Web app self-hosted per gestione fatturazione autónomo spagnolo con IVA internazionale",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Initialize Next.js project with Docker and Prisma",
+      "description": "As a developer, I want to set up the Next.js project with TypeScript, Tailwind CSS, Prisma, and Docker Compose for PostgreSQL.",
+      "acceptanceCriteria": [
+        "Next.js project initialized with TypeScript and Tailwind CSS",
+        "Prisma installed and configured with PostgreSQL datasource",
+        "Docker Compose file with PostgreSQL service and app service",
+        "Basic project structure with src/app directory",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Use Next.js 14+ with App Router. PostgreSQL in Docker on port 5432."
+    },
+    {
+      "id": "US-002",
+      "title": "Create Prisma schema for core entities",
+      "description": "As a developer, I need the database schema for Company, Client, Supplier, TaxRate, Invoice, InvoiceLine, CreditNote, Quote, PurchaseInvoice, and Expense.",
+      "acceptanceCriteria": [
+        "Prisma schema includes Company model (name, nif, address, country, email, phone, iban, taxRegime)",
+        "Prisma schema includes Client model (name, vatNumber, fiscalCode, address, country, email, currency, vatRegime, deleted flag)",
+        "Prisma schema includes Supplier model (name, vatNumber, address, country, email, expenseCategory, deleted flag)",
+        "Prisma schema includes TaxRate model (name, rate, country, type)",
+        "Prisma schema includes Invoice model (number, clientId, date, dueDate, status, currency, exchangeRate, lines relation)",
+        "Prisma schema includes InvoiceLine model (description, quantity, unitPrice, taxRateId)",
+        "Prisma schema includes CreditNote model (number, invoiceId, date, lines)",
+        "Prisma schema includes Quote model (number, clientId, date, expiryDate, status, lines)",
+        "Prisma schema includes PurchaseInvoice model (supplierId, number, date, category, status, filePath)",
+        "Prisma schema includes Expense model (date, description, amount, category, taxAmount, deductible, filePath)",
+        "Migration runs successfully",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "All monetary amounts as Decimal. Status fields as enums. Quote and Invoice share a Line structure."
+    },
+    {
+      "id": "US-003",
+      "title": "Seed database with tax rates",
+      "description": "As a developer, I need seed data for Spanish IVA rates and international tax scenarios.",
+      "acceptanceCriteria": [
+        "Seed script creates Spanish IVA rates: general 21%, reducido 10%, superreducido 4%",
+        "Seed script creates intra-EU reverse charge rate (0%)",
+        "Seed script creates extra-EU export rate (0%)",
+        "Seed script is idempotent (can run multiple times without duplicates)",
+        "npx prisma db seed runs successfully",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Create app layout with sidebar navigation",
+      "description": "As a user, I want a sidebar navigation layout with links to all main sections.",
+      "acceptanceCriteria": [
+        "Root layout with sidebar navigation component",
+        "Sidebar links: Dashboard, Fatture, Preventivi, Note Credito, Acquisti, Spese, Anagrafiche (Clienti, Fornitori), Fiscale, Impostazioni",
+        "Active link highlighting",
+        "Responsive layout optimized for desktop",
+        "Main content area with proper padding",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Use Tailwind CSS. Italian language for UI labels."
+    },
+    {
+      "id": "US-005",
+      "title": "Company settings page",
+      "description": "As a user, I want to configure my company data (name, NIF, address, IBAN, tax regime) so they appear on invoices.",
+      "acceptanceCriteria": [
+        "Settings page at /impostazioni with form for company data",
+        "Fields: nome, NIF/CIF, indirizzo, città, CAP, paese, email, telefono, IBAN, regime fiscale",
+        "Server action to save company data to database",
+        "Server action to load existing company data",
+        "Basic NIF format validation (8 digits + letter or letter + 7 digits + letter)",
+        "Success feedback on save",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Use Zod for validation. Single company record (upsert)."
+    },
+    {
+      "id": "US-006",
+      "title": "Client list page with search",
+      "description": "As a user, I want to see a list of my clients with search functionality.",
+      "acceptanceCriteria": [
+        "Page at /anagrafiche/clienti showing client list",
+        "DataTable component showing: name, VAT number, country, email",
+        "Search input filtering by name or VAT number",
+        "Pagination (10 items per page)",
+        "Button to add new client",
+        "Server action to fetch clients with search and pagination",
+        "Soft-deleted clients are excluded from list",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Create a reusable DataTable component."
+    },
+    {
+      "id": "US-007",
+      "title": "Client create/edit form",
+      "description": "As a user, I want to create and edit clients with all fiscal data needed for international invoicing.",
+      "acceptanceCriteria": [
+        "Form page at /anagrafiche/clienti/nuovo and /anagrafiche/clienti/[id]/modifica",
+        "Fields: ragione sociale, partita IVA/VAT, codice fiscale, indirizzo, città, CAP, paese, email, valuta preferita, note",
+        "Country selection determines VAT regime automatically (nazionale, intra-UE, extra-UE, UK)",
+        "VAT number format validation based on country prefix",
+        "Server actions for create and update client",
+        "Redirect to client list after save",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "EU country list for intra-EU detection. UK is extra-EU post-Brexit."
+    },
+    {
+      "id": "US-008",
+      "title": "Client delete (soft delete)",
+      "description": "As a user, I want to delete a client (soft delete) so they no longer appear in the list.",
+      "acceptanceCriteria": [
+        "Delete button on client list rows",
+        "Confirmation dialog before deletion",
+        "Soft delete sets deletedAt timestamp",
+        "Client disappears from list after deletion",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Supplier list and CRUD",
+      "description": "As a user, I want to manage supplier records with the same pattern as clients plus expense category.",
+      "acceptanceCriteria": [
+        "Page at /anagrafiche/fornitori with supplier list (reuse DataTable)",
+        "Supplier form with same fields as client plus expense category dropdown",
+        "Categories: servizi professionali, software, hardware, viaggi, telecomunicazioni, altro",
+        "Search and pagination on list",
+        "Create, edit, and soft-delete functionality",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Follow same patterns established for clients."
+    },
+    {
+      "id": "US-010",
+      "title": "Quote creation form",
+      "description": "As a user, I want to create quotes with line items, automatic totals, and progressive numbering.",
+      "acceptanceCriteria": [
+        "Form page at /preventivi/nuovo",
+        "Client selection dropdown",
+        "Date and expiry date fields",
+        "Dynamic line items: description, quantity, unit price, tax rate selection",
+        "Automatic calculation of subtotal, tax, and total per line and overall",
+        "Progressive numbering format PREV-YYYY-NNN",
+        "Server action to save quote with status 'bozza'",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "Tax rate dropdown populated from TaxRate table."
+    },
+    {
+      "id": "US-011",
+      "title": "Quote list and status management",
+      "description": "As a user, I want to see all quotes and change their status.",
+      "acceptanceCriteria": [
+        "Page at /preventivi showing quote list with DataTable",
+        "Columns: number, client, date, expiry, total, status",
+        "Status badge with colors: bozza, inviato, accettato, rifiutato, scaduto",
+        "Actions to change status (dropdown or buttons)",
+        "Link to edit quote (only if bozza)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Invoice creation form with international VAT logic",
+      "description": "As a user, I want to create invoices with automatic VAT calculation based on client country.",
+      "acceptanceCriteria": [
+        "Form page at /fatture/nuova",
+        "Client selection that auto-determines VAT regime",
+        "Date, due date, payment method fields",
+        "Dynamic line items: description, quantity, unit price, tax rate",
+        "Tax rate auto-selected based on client VAT regime: ES client=21%, EU+VAT=0% reverse charge, EU no VAT=21%, UK/extra-EU=0% export",
+        "Currency selection (EUR, GBP, USD) with exchange rate field",
+        "Automatic totals calculation",
+        "Progressive numbering INV-YYYY-NNN",
+        "Server action to save invoice with status 'bozza'",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "VAT regime logic is critical: nazionale (ES), intraUE (reverse charge if valid VAT), extraUE/UK (export exempt)."
+    },
+    {
+      "id": "US-013",
+      "title": "Invoice list and status management",
+      "description": "As a user, I want to see all invoices and manage their status.",
+      "acceptanceCriteria": [
+        "Page at /fatture showing invoice list",
+        "Columns: number, client, date, due date, total, currency, status",
+        "Status badge: bozza, emessa, inviata, pagata, scaduta",
+        "Actions to change status",
+        "Link to view/edit invoice",
+        "Filter by status",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Invoice legal disclaimers based on VAT regime",
+      "description": "As a user, I want invoices to automatically include the correct legal disclaimers based on the VAT type applied.",
+      "acceptanceCriteria": [
+        "Reverse charge disclaimer for intra-EU invoices: 'Operazione in reverse charge ai sensi dell'art. 196 Direttiva 2006/112/CE'",
+        "Export disclaimer for extra-EU invoices: 'Operazione non soggetta a IVA ai sensi dell'art. 21 Ley 37/1992'",
+        "Standard Spanish invoice disclaimer for domestic invoices",
+        "Disclaimers stored with invoice and visible on detail page",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "Disclaimers auto-generated based on client vatRegime when invoice is created."
+    },
+    {
+      "id": "US-015",
+      "title": "Convert quote to invoice",
+      "description": "As a user, I want to convert an accepted quote into an invoice.",
+      "acceptanceCriteria": [
+        "Button 'Converti in fattura' visible only on quotes with status 'accettato'",
+        "Clicking creates a new invoice pre-filled with quote data (client, lines)",
+        "New invoice gets next progressive number",
+        "Quote status updated to indicate conversion",
+        "Redirect to new invoice edit page",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Credit note creation from invoice",
+      "description": "As a user, I want to create credit notes linked to existing invoices (total or partial).",
+      "acceptanceCriteria": [
+        "Button 'Crea nota di credito' on invoice detail (only for emessa/inviata/pagata)",
+        "Form pre-filled with invoice data, allows removing/adjusting lines for partial credit",
+        "Same VAT logic as original invoice",
+        "Progressive numbering NC-YYYY-NNN",
+        "Reference to original invoice number visible",
+        "Server action saves credit note and updates invoice status",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Credit note list",
+      "description": "As a user, I want to see all credit notes in a dedicated page.",
+      "acceptanceCriteria": [
+        "Page at /note-credito showing credit note list",
+        "Columns: number, related invoice, client, date, total",
+        "Link to view credit note detail",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Purchase invoice registration form",
+      "description": "As a user, I want to register purchase invoices received from suppliers.",
+      "acceptanceCriteria": [
+        "Form page at /acquisti/nuovo",
+        "Supplier selection dropdown",
+        "Fields: supplier invoice number, date, lines (description, amount, tax), total",
+        "Expense category selection",
+        "File upload for PDF/image of the invoice",
+        "Flag for deductible/non-deductible VAT",
+        "Server action to save with status 'registrata'",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": "File stored in local filesystem (Docker volume)."
+    },
+    {
+      "id": "US-019",
+      "title": "Purchase invoice list",
+      "description": "As a user, I want to see all purchase invoices with filters.",
+      "acceptanceCriteria": [
+        "Page at /acquisti showing purchase invoice list",
+        "Columns: supplier, number, date, category, total, status",
+        "Filters: by supplier, date range, category, status",
+        "Action to mark as 'pagata'",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Expense registration form",
+      "description": "As a user, I want to register expenses (receipts) not associated with formal invoices.",
+      "acceptanceCriteria": [
+        "Form page at /spese/nuova",
+        "Fields: date, description, amount, category, tax amount",
+        "Category dropdown: trasporti, pasti, materiale ufficio, telecomunicazioni, altro",
+        "Flag deducibile/non deducibile",
+        "File upload for receipt photo/PDF",
+        "Server action to save expense",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Expense list with filters and totals",
+      "description": "As a user, I want to see all expenses with filters and period totals.",
+      "acceptanceCriteria": [
+        "Page at /spese showing expense list",
+        "Columns: date, description, category, amount, deductible flag",
+        "Filters: date range, category, deductible/all",
+        "Total amount displayed for filtered results",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "AI data extraction from uploaded invoices/receipts",
+      "description": "As a user, when I upload a PDF/image, I want the system to extract data automatically using Claude Vision.",
+      "acceptanceCriteria": [
+        "API route that accepts file upload and sends to Claude API with vision",
+        "Extraction of: supplier name, VAT number, date, invoice number, line items, amounts, tax, total",
+        "Response returns structured JSON with extracted fields",
+        "Matching against existing suppliers by VAT number",
+        "Support for PDF (first page) and images (JPG, PNG)",
+        "Typecheck passes"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": "Use Anthropic SDK with claude-3-5-sonnet model. Send image as base64."
+    },
+    {
+      "id": "US-023",
+      "title": "AI extraction integration in purchase invoice and expense forms",
+      "description": "As a user, I want the upload in purchase invoice and expense forms to auto-fill fields from AI extraction.",
+      "acceptanceCriteria": [
+        "When file is uploaded in purchase invoice form, trigger AI extraction",
+        "Pre-fill form fields with extracted data",
+        "Show confidence indicator or highlight auto-filled fields",
+        "User can manually correct any field before saving",
+        "If supplier matched, auto-select in dropdown; if not, suggest creating new",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": "Depends on US-022 API route."
+    },
+    {
+      "id": "US-024",
+      "title": "CSV import page for historical invoices",
+      "description": "As a user, I want to import historical issued and received invoices from CSV files.",
+      "acceptanceCriteria": [
+        "Page at /import/csv with file upload",
+        "Column mapping interface: user maps CSV columns to system fields",
+        "Preview of first 5 rows after mapping",
+        "Validation of data (date formats, required fields, numeric amounts)",
+        "Import creates invoices/purchase invoices and auto-creates clients/suppliers if not found",
+        "Report showing imported count and any errors",
+        "Toggle between importing issued vs received invoices",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Batch PDF import with AI extraction",
+      "description": "As a user, I want to upload multiple PDFs and have them processed in batch by AI.",
+      "acceptanceCriteria": [
+        "Page at /import/pdf with multi-file upload",
+        "Queue-based processing with progress bar",
+        "Each file processed with AI extraction (US-022)",
+        "Review page showing all extracted data before confirm",
+        "User can edit extracted data per file",
+        "Confirm button imports all reviewed items",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": "Process files sequentially to avoid API rate limits."
+    },
+    {
+      "id": "US-026",
+      "title": "Dashboard with key financial indicators",
+      "description": "As a user, I want a dashboard showing revenue, expenses, balance, and overdue invoices.",
+      "acceptanceCriteria": [
+        "Dashboard at / (home page)",
+        "Period selector: month, quarter, year",
+        "Card showing total revenue (issued invoices) for period",
+        "Card showing total expenses (purchases + expenses) for period",
+        "Card showing balance (revenue - expenses)",
+        "Card showing count of overdue invoices",
+        "List of recent documents (last 5 invoices, purchases)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Dashboard revenue chart",
+      "description": "As a user, I want a monthly revenue chart on the dashboard.",
+      "acceptanceCriteria": [
+        "Bar or line chart showing monthly revenue for current year",
+        "Chart uses a lightweight library (e.g., recharts or chart.js)",
+        "Responsive chart sizing",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Quarterly VAT report (Modelo 303)",
+      "description": "As a Spanish autónomo, I want a quarterly VAT report calculating IVA to pay.",
+      "acceptanceCriteria": [
+        "Page at /fiscale/iva",
+        "Quarter selector (Q1-Q4 and year)",
+        "IVA repercutida: sum of VAT on issued invoices to Spanish clients",
+        "IVA soportada deducible: sum of deductible VAT on purchases",
+        "Result: IVA to pay = repercutida - soportada",
+        "Correctly excludes intra-EU and extra-EU invoices from domestic VAT calculation",
+        "Section showing intra-EU operations summary (for modelo 349)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": "Critical: only Spanish domestic invoices contribute to IVA repercutida."
+    },
+    {
+      "id": "US-029",
+      "title": "IRPF income estimate (Modelo 130)",
+      "description": "As a Spanish autónomo, I want an income tax estimate with quarterly payments.",
+      "acceptanceCriteria": [
+        "Page at /fiscale/irpf",
+        "Calculation of net income: total revenue - deductible expenses",
+        "Quarterly pago fraccionado: 20% of net income for the quarter",
+        "Annual summary with total estimated IRPF using Spanish tax brackets",
+        "Display of any IRPF withholdings from Spanish clients (if applicable)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": "Spanish IRPF brackets for 2024: 19% up to 12450, 24% 12450-20200, 30% 20200-35200, 37% 35200-60000, 45% 60000+."
+    },
+    {
+      "id": "US-030",
+      "title": "PDF generation for invoices",
+      "description": "As a user, I want to generate professional PDF invoices with company details, client info, and line items.",
+      "acceptanceCriteria": [
+        "PDF generation endpoint/action for invoices",
+        "Template includes: company logo placeholder, company data, client data, invoice details, line items, totals, legal disclaimers, bank details (IBAN)",
+        "Download button on invoice detail page",
+        "Multi-language support: select language per document (ES, IT, EN)",
+        "Typecheck passes"
+      ],
+      "priority": 30,
+      "passes": false,
+      "notes": "Use @react-pdf/renderer or similar. Legal disclaimers from US-014."
+    },
+    {
+      "id": "US-031",
+      "title": "PDF generation for quotes and credit notes",
+      "description": "As a user, I want to generate PDFs for quotes and credit notes with the same professional layout.",
+      "acceptanceCriteria": [
+        "PDF generation for quotes (same template adapted)",
+        "PDF generation for credit notes (includes reference to original invoice)",
+        "Download buttons on quote and credit note detail pages",
+        "Multi-language support matching invoice PDF",
+        "Typecheck passes"
+      ],
+      "priority": 31,
+      "passes": false,
+      "notes": "Reuse PDF template components from US-030."
+    },
+    {
+      "id": "US-032",
+      "title": "Authentication with login page",
+      "description": "As a user, I want the system protected by email/password login.",
+      "acceptanceCriteria": [
+        "Login page at /login with email and password fields",
+        "Password hashing with bcrypt",
+        "Session management with JWT stored in httpOnly cookie",
+        "Middleware protecting all routes except /login",
+        "Redirect to /login if not authenticated",
+        "Logout functionality",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 32,
+      "passes": false,
+      "notes": "Single user system. Create initial user via seed or env variable."
+    },
+    {
+      "id": "US-033",
+      "title": "Change password functionality",
+      "description": "As a user, I want to change my password from the settings page.",
+      "acceptanceCriteria": [
+        "Change password form in settings page",
+        "Requires current password verification",
+        "New password with confirmation field",
+        "Password validation (minimum 8 characters)",
+        "Success/error feedback",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 33,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-034",
+      "title": "VIES VAT number validation",
+      "description": "As a user, I want intra-EU client VAT numbers validated against the VIES system.",
+      "acceptanceCriteria": [
+        "When saving a client with EU country, validate VAT number against VIES API",
+        "Show validation status (valid/invalid/service unavailable)",
+        "Store validation result with timestamp",
+        "If VIES unavailable, allow saving with warning",
+        "Typecheck passes"
+      ],
+      "priority": 34,
+      "passes": false,
+      "notes": "VIES SOAP API or use a REST wrapper. Non-blocking validation."
+    }
+  ]
+}
