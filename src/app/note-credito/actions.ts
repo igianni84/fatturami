@@ -125,6 +125,72 @@ export async function getInvoiceForCreditNote(
 
 // --- Create credit note ---
 
+// --- Types for list ---
+
+export interface CreditNoteListItem {
+  id: string;
+  number: string;
+  invoiceNumber: string;
+  invoiceId: string;
+  clientName: string;
+  date: string;
+  total: number;
+  currency: string;
+}
+
+// --- Fetch credit notes for list ---
+
+export async function getCreditNotes(params: {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ items: CreditNoteListItem[]; totalCount: number }> {
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 10;
+  const skip = (page - 1) * pageSize;
+
+  const [creditNotes, totalCount] = await Promise.all([
+    prisma.creditNote.findMany({
+      skip,
+      take: pageSize,
+      orderBy: { date: "desc" },
+      include: {
+        invoice: {
+          include: {
+            client: { select: { name: true } },
+          },
+        },
+        lines: {
+          include: { taxRate: { select: { rate: true } } },
+        },
+      },
+    }),
+    prisma.creditNote.count(),
+  ]);
+
+  const items: CreditNoteListItem[] = creditNotes.map((cn) => {
+    const total = cn.lines.reduce((sum, line) => {
+      const lineSubtotal = Number(line.quantity) * Number(line.unitPrice);
+      const lineTax = lineSubtotal * (Number(line.taxRate.rate) / 100);
+      return sum + lineSubtotal + lineTax;
+    }, 0);
+
+    return {
+      id: cn.id,
+      number: cn.number,
+      invoiceNumber: cn.invoice.number,
+      invoiceId: cn.invoice.id,
+      clientName: cn.invoice.client.name,
+      date: cn.date.toISOString().split("T")[0],
+      total,
+      currency: cn.invoice.currency,
+    };
+  });
+
+  return { items, totalCount };
+}
+
+// --- Create credit note ---
+
 export async function createCreditNote(
   data: CreditNoteFormData
 ): Promise<CreditNoteActionResult> {

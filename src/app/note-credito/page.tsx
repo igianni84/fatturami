@@ -1,14 +1,23 @@
+import { getCreditNotes } from "./actions";
+import CreditNoteList from "./CreditNoteList";
+
 export const dynamic = "force-dynamic";
 
-export default function CreditNotesPage() {
+export default async function CreditNotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params.page || "1", 10));
+
+  const { items, totalCount } = await getCreditNotes({ page, pageSize: 10 });
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Note di Credito</h1>
-      </div>
-      <p className="text-gray-500 text-sm">
-        La lista delle note di credito sarà disponibile a breve.
-      </p>
-    </div>
+    <CreditNoteList
+      creditNotes={items}
+      totalCount={totalCount}
+      page={page}
+    />
   );
 }
