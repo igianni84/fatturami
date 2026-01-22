@@ -34,6 +34,10 @@
 - Next.js 16 searchParams is a Promise: use `const params = await searchParams` in page components
 - "use server" modules: ALL exported functions must be async. Sync helpers must stay private (not exported)
 - Client form pattern: client component with useRouter().push() for redirect after successful server action
+- Progressive numbering pattern: findFirst with startsWith(prefix) + orderBy desc, parse and increment
+- Prisma Decimal creation: `import { Decimal } from "@prisma/client/runtime/library"` then `new Decimal(value)`
+- Dynamic line items: array state with updateLine(index, field, value), addLine(), removeLine(index) helpers
+- Quote/Invoice form pattern: server component loads clients+taxRates, passes to client form component
 
 ---
 
@@ -179,4 +183,21 @@
   - Zod validation for enum fields: use `z.string().refine((val) => VALID_VALUES.includes(val))` since Zod doesn't natively validate Prisma enums
   - When passing Prisma enum values from Zod-validated string, cast with `as ExpenseCategory` in the create/update data
   - Supplier form is simpler than Client form: no VAT regime detection, no fiscal code, no currency preference
+---
+
+## 2026-01-22 - US-010
+- What was implemented: Quote creation form at /preventivi/nuovo with client selection dropdown, date/expiry date fields, dynamic line items (description, quantity, unit price, tax rate), automatic calculation of subtotals/tax/total per line and overall, progressive numbering PREV-YYYY-NNN, and save with status 'bozza'
+- Files changed:
+  - src/app/preventivi/actions.ts (new - server actions: getClientsForSelect, getTaxRates, createQuote with Zod validation and progressive numbering)
+  - src/app/preventivi/QuoteForm.tsx (new - client component form with dynamic line items and live totals)
+  - src/app/preventivi/nuovo/page.tsx (new - server component page loading clients and tax rates)
+  - src/app/preventivi/page.tsx (new - placeholder list page with "Nuovo Preventivo" button)
+  - prd.json (US-010 passes: true)
+- **Learnings for future iterations:**
+  - Progressive numbering pattern: query last record with `startsWith(prefix)`, parse last segment, increment
+  - Dynamic line items pattern: array of objects in state, updateLine/addLine/removeLine helpers
+  - Live totals: computed from state on each render (no separate state needed)
+  - Prisma Decimal import: `import { Decimal } from "@prisma/client/runtime/library"` for creating Decimal values
+  - Quote form reuses tax rates from TaxRate table via getTaxRates() server action
+  - Placeholder list page needed for redirect target (will be fully implemented in US-011)
 ---
