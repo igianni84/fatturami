@@ -201,3 +201,18 @@
   - Quote form reuses tax rates from TaxRate table via getTaxRates() server action
   - Placeholder list page needed for redirect target (will be fully implemented in US-011)
 ---
+
+## 2026-01-22 - US-011
+- What was implemented: Quote list page at /preventivi showing all quotes with DataTable (columns: number, client, date, expiry, total, status), colored status badges (bozza/inviato/accettato/rifiutato/scaduto), status change dropdown actions with valid transitions, edit link only for bozza quotes, and pagination
+- Files changed:
+  - src/app/preventivi/actions.ts (added getQuotes with pagination/totals calculation, updateQuoteStatus with valid transition enforcement)
+  - src/app/preventivi/QuoteList.tsx (new - client component with DataTable, status badges, status change dropdown menu)
+  - src/app/preventivi/page.tsx (updated - server component fetching quotes and passing to QuoteList)
+  - prd.json (US-011 passes: true)
+- **Learnings for future iterations:**
+  - Quote total is computed from lines (sum of quantity*unitPrice + tax per line) since it's not stored on the Quote model
+  - Status transitions pattern: define a mapping of current status -> valid next statuses, render only valid transitions
+  - Status badge pattern: use tailwind `rounded-full` with color classes per status value
+  - Dropdown menu pattern: use relative positioning on button container, absolute on the menu with z-index
+  - Quote status enum includes "convertito" (used when quote is converted to invoice in US-015) but should not be a user-selectable transition
+---
