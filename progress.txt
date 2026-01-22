@@ -1,5 +1,5 @@
 ## Codebase Patterns
-- Stack: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Prisma ORM, PostgreSQL
+- Stack: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, Prisma 6 ORM, PostgreSQL
 - Use Zod for form and API validation
 - UI language: Italian
 - Document generation languages: ES, IT, EN
@@ -11,5 +11,87 @@
 - Soft delete pattern: deletedAt timestamp field
 - Progressive numbering: PREFIX-YYYY-NNN format
 - VAT regime auto-detection based on client country
+- Prisma client import: `import { PrismaClient } from "@prisma/client"` (Prisma 6 style, enums also imported from there)
+- Seed script uses `tsx` runner: configured via `prisma.seed` field in package.json
+- Seed idempotency pattern: use deterministic IDs with `upsert` (e.g., `seed-{type}-{country}`)
+- Prisma singleton pattern in `src/lib/prisma.ts`
+- Tailwind 4 uses `@import "tailwindcss"` in globals.css (no tailwind.config.js needed)
+- PostCSS uses `@tailwindcss/postcss` plugin
+- Next.js output mode: "standalone" (for Docker deployment)
+- ESLint uses flat config (eslint.config.mjs) with next/core-web-vitals
+- Migration generation without DB: `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`
+- Line items pattern: description, quantity, unitPrice, taxRateId (except PurchaseInvoiceLine which uses amount)
+- All parent-child relations use onDelete: Cascade for line items
+- Sidebar navigation component at `src/components/Sidebar.tsx` (client component with usePathname for active highlighting)
+- Layout structure: flex h-screen with fixed sidebar (w-64) and scrollable main content area
+- ESLint has a circular reference issue with FlatCompat + next/core-web-vitals (pre-existing, not blocking)
 
+---
+
+## 2026-01-22 - US-001
+- What was implemented: Next.js project initialization with TypeScript, Tailwind CSS 4, Prisma 6 ORM, Docker Compose (PostgreSQL + app), and standalone build config
+- Files changed:
+  - package.json, package-lock.json (dependencies)
+  - tsconfig.json (TypeScript config with path aliases)
+  - next.config.ts (standalone output)
+  - postcss.config.mjs (Tailwind 4 PostCSS plugin)
+  - eslint.config.mjs (flat ESLint config)
+  - next-env.d.ts (Next.js type declarations)
+  - prisma/schema.prisma (PostgreSQL datasource)
+  - src/app/globals.css (Tailwind import)
+  - src/app/layout.tsx (root layout)
+  - src/app/page.tsx (home page)
+  - src/lib/prisma.ts (Prisma singleton)
+  - docker-compose.yml (PostgreSQL + app services)
+  - Dockerfile (multi-stage build)
+  - .gitignore, .env.example
+- **Learnings for future iterations:**
+  - Prisma 7.x requires a driver adapter or Accelerate URL - use Prisma 6.x for traditional PostgreSQL connection via URL
+  - Tailwind 4 does not use tailwind.config.js; use `@import "tailwindcss"` in CSS and `@tailwindcss/postcss` plugin
+  - Next.js `create-next-app` fails if directory has existing files - must set up manually
+  - ESLint flat config requires `@eslint/eslintrc` package for compat with next configs
+  - `public/` directory must exist for Docker build (COPY step)
+---
+
+## 2026-01-22 - US-002
+- What was implemented: Complete Prisma schema with all core entities (Company, Client, Supplier, TaxRate, Invoice, InvoiceLine, CreditNote, CreditNoteLine, Quote, QuoteLine, PurchaseInvoice, PurchaseInvoiceLine, Expense) plus enums (VatRegime, InvoiceStatus, QuoteStatus, PurchaseInvoiceStatus, ExpenseCategory, TaxRateType)
+- Files changed:
+  - prisma/schema.prisma (full schema with all models, enums, relations, and indexes)
+  - prisma/migrations/20260122000000_create_core_entities/migration.sql (generated SQL migration)
+- **Learnings for future iterations:**
+  - When Docker is not running, use `prisma migrate diff --from-empty --to-schema-datamodel` to generate migration SQL without a live DB
+  - `prisma validate` and `prisma generate` work without a database connection
+  - Line items (InvoiceLine, QuoteLine, CreditNoteLine) share a similar structure: description, quantity, unitPrice, taxRateId
+  - PurchaseInvoiceLine uses `amount` instead of quantity/unitPrice since purchases are recorded as totals
+  - All line item models use `onDelete: Cascade` to clean up when parent is deleted
+  - TaxRate is referenced by all line item types via taxRateId relation
+---
+
+## 2026-01-22 - US-003
+- What was implemented: Seed script for TaxRate table with Spanish IVA rates (21%, 10%, 4%) and international tax scenarios (intra-EU reverse charge 0%, extra-EU export 0%)
+- Files changed:
+  - prisma/seed.ts (new seed script using upsert for idempotency)
+  - package.json (added `prisma.seed` config and `tsx` dev dependency)
+  - package-lock.json (tsx dependency)
+- **Learnings for future iterations:**
+  - Prisma seed is configured via `prisma.seed` field in package.json (deprecated in Prisma 7, will need prisma.config.ts)
+  - Use `tsx` to run TypeScript seed files directly
+  - Use deterministic IDs with `upsert` for idempotent seeding (avoids duplicates on re-runs)
+  - TaxRateType enum values: standard, reduced, super_reduced, reverse_charge, export_exempt
+  - Seed script can't run without a live database (expected - `npx prisma db seed` requires Docker running)
+---
+
+## 2026-01-22 - US-004
+- What was implemented: App layout with sidebar navigation including all required links (Dashboard, Fatture, Preventivi, Note Credito, Acquisti, Spese, Anagrafiche with Clienti/Fornitori sub-items, Fiscale, Impostazioni), active link highlighting using usePathname, and responsive desktop layout with fixed sidebar and scrollable content area
+- Files changed:
+  - src/components/Sidebar.tsx (new - client component with navigation links and active state)
+  - src/app/layout.tsx (updated - flex layout with sidebar and main content area)
+  - src/app/page.tsx (simplified - removed redundant padding/centering since layout handles it)
+- **Learnings for future iterations:**
+  - Use `"use client"` directive for components needing `usePathname` from next/navigation
+  - Active link detection: exact match for "/" (dashboard), startsWith for other routes
+  - Anagrafiche section uses a parent label (non-clickable) with child links indented
+  - Sidebar is dark (bg-gray-800) with blue highlight for active items
+  - ESLint has a circular reference issue with the FlatCompat layer for next/core-web-vitals - typecheck is the reliable quality gate
+  - Next.js build with Turbopack compiles and generates static pages successfully
 ---
