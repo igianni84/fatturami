@@ -88,7 +88,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Use Zod for validation. Single company record (upsert)."
     },
     {
@@ -107,7 +107,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Create a reusable DataTable component."
     },
     {
@@ -125,7 +125,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "EU country list for intra-EU detection. UK is extra-EU post-Brexit."
     },
     {

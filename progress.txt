@@ -20,11 +20,20 @@
 - Next.js output mode: "standalone" (for Docker deployment)
 - ESLint uses flat config (eslint.config.mjs) with next/core-web-vitals
 - Migration generation without DB: `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`
+- Pages with DB queries need `export const dynamic = "force-dynamic"` to avoid build-time pre-rendering errors
+- Server action pattern: Zod schema + safeParse validation + return `{ success, errors?, message? }`
+- Form pages: server component loads data, passes to client component form via props
 - Line items pattern: description, quantity, unitPrice, taxRateId (except PurchaseInvoiceLine which uses amount)
 - All parent-child relations use onDelete: Cascade for line items
 - Sidebar navigation component at `src/components/Sidebar.tsx` (client component with usePathname for active highlighting)
 - Layout structure: flex h-screen with fixed sidebar (w-64) and scrollable main content area
 - ESLint has a circular reference issue with FlatCompat + next/core-web-vitals (pre-existing, not blocking)
+- Prisma singleton import: `import { prisma } from "@/lib/prisma"` (named export, NOT default)
+- DataTable component at `src/components/DataTable.tsx` - reusable table with search, pagination, and actions column
+- List pages pattern: server component (page.tsx) reads searchParams, calls server action, passes data to client component
+- Next.js 16 searchParams is a Promise: use `const params = await searchParams` in page components
+- "use server" modules: ALL exported functions must be async. Sync helpers must stay private (not exported)
+- Client form pattern: client component with useRouter().push() for redirect after successful server action
 
 ---
 
@@ -94,4 +103,51 @@
   - Sidebar is dark (bg-gray-800) with blue highlight for active items
   - ESLint has a circular reference issue with the FlatCompat layer for next/core-web-vitals - typecheck is the reliable quality gate
   - Next.js build with Turbopack compiles and generates static pages successfully
+---
+
+## 2026-01-22 - US-005
+- What was implemented: Company settings page at /impostazioni with form for all company fields (nome, NIF/CIF, indirizzo, città, CAP, paese, email, telefono, IBAN, regime fiscale), Zod validation with NIF format check, server actions for load/save (upsert pattern), and success feedback on save
+- Files changed:
+  - src/app/impostazioni/page.tsx (new - server component page with dynamic rendering)
+  - src/app/impostazioni/CompanyForm.tsx (new - client component form with validation display)
+  - src/app/impostazioni/actions.ts (new - server actions getCompany/saveCompany with Zod schema)
+  - package.json, package-lock.json (added zod dependency)
+- **Learnings for future iterations:**
+  - Pages that fetch from DB at render time need `export const dynamic = "force-dynamic"` to avoid static pre-rendering failures during build (when DB isn't available)
+  - Server actions pattern: define Zod schema, export types, create action functions that validate then upsert
+  - Form pattern: client component with useState for form data, call server action directly, display errors from returned result
+  - NIF validation regex: `^(\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i` covers DNI (8 digits + letter) and NIE/CIF (letter + 7 digits + letter/digit)
+  - Single company record pattern: findFirst to check existence, then update or create accordingly
+---
+
+## 2026-01-22 - US-006
+- What was implemented: Client list page at /anagrafiche/clienti with reusable DataTable component, search by name/VAT number, pagination (10 per page), "Nuovo Cliente" button, and server action excluding soft-deleted clients
+- Files changed:
+  - src/components/DataTable.tsx (new - reusable generic table with search, pagination, actions column)
+  - src/app/anagrafiche/clienti/page.tsx (new - server component with dynamic rendering, reads searchParams)
+  - src/app/anagrafiche/clienti/ClientList.tsx (new - client component for interactivity, uses DataTable)
+  - src/app/anagrafiche/clienti/actions.ts (new - getClients server action with search/pagination)
+- **Learnings for future iterations:**
+  - Prisma singleton uses named export: `import { prisma } from "@/lib/prisma"` (not default export)
+  - Next.js 16 searchParams in page components is a Promise that must be awaited
+  - DataTable component is generic (`<T extends { id: string }>`) - items must have an id field
+  - Search uses Prisma `contains` with `mode: "insensitive"` for case-insensitive matching
+  - List page pattern: server component reads URL params → calls server action → passes data to client component
+  - Client component uses `useRouter` + `useSearchParams` to update URL on search/pagination changes
+---
+
+## 2026-01-22 - US-007
+- What was implemented: Client create/edit form with Zod validation, VAT regime auto-detection by country, VAT number format validation per country, country dropdown with EU/Extra-EU grouping, and redirect to client list after save
+- Files changed:
+  - src/app/anagrafiche/clienti/actions.ts (added createClient, updateClient, getClient actions with Zod schema, VAT validation, and regime detection)
+  - src/app/anagrafiche/clienti/ClientForm.tsx (new - client form component with country selection and regime display)
+  - src/app/anagrafiche/clienti/nuovo/page.tsx (new - create client page)
+  - src/app/anagrafiche/clienti/[id]/modifica/page.tsx (new - edit client page with dynamic rendering)
+- **Learnings for future iterations:**
+  - In "use server" modules, ALL exported functions must be async (server actions). Pure sync helper functions must NOT be exported - keep them private or move to a shared utility module
+  - VAT regime detection logic: ES=nazionale, EU countries=intraUE, everything else=extraUE
+  - Client form uses `useRouter().push()` for redirect after successful save
+  - Edit page uses `export const dynamic = "force-dynamic"` since it fetches from DB at render time
+  - Next.js 16 dynamic route params are a Promise: `params: Promise<{ id: string }>` must be awaited
+  - Country dropdown with optgroup for EU/Extra-EU separation improves UX
 ---
