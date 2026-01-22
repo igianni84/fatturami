@@ -1,20 +1,23 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
+import { getQuotes } from "./actions";
+import QuoteList from "./QuoteList";
 
-export default function PreventiviPage() {
+export default async function PreventiviPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+
+  const { quotes, totalCount } = await getQuotes({ page, pageSize: 10 });
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Preventivi</h1>
-        <Link
-          href="/preventivi/nuovo"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Nuovo Preventivo
-        </Link>
-      </div>
-      <p className="text-gray-500">Nessun preventivo presente.</p>
-    </div>
+    <QuoteList
+      quotes={quotes}
+      totalCount={totalCount}
+      page={page}
+    />
   );
 }

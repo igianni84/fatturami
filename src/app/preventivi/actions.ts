@@ -89,6 +89,88 @@ async function generateQuoteNumber(): Promise<string> {
   return `${prefix}${String(nextNum).padStart(3, "0")}`;
 }
 
+// --- Types for quote list ---
+
+export interface QuoteListItem {
+  id: string;
+  number: string;
+  clientName: string;
+  date: string;
+  expiryDate: string | null;
+  total: number;
+  status: string;
+}
+
+export interface QuoteListResult {
+  quotes: QuoteListItem[];
+  totalCount: number;
+}
+
+// --- Fetch quotes with pagination ---
+
+export async function getQuotes(params: {
+  page?: number;
+  pageSize?: number;
+}): Promise<QuoteListResult> {
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 10;
+  const skip = (page - 1) * pageSize;
+
+  const [quotes, totalCount] = await Promise.all([
+    prisma.quote.findMany({
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: "desc" },
+      include: {
+        client: { select: { name: true } },
+        lines: {
+          include: { taxRate: { select: { rate: true } } },
+        },
+      },
+    }),
+    prisma.quote.count(),
+  ]);
+
+  const result: QuoteListItem[] = quotes.map((q) => {
+    const total = q.lines.reduce((sum, line) => {
+      const subtotal = Number(line.quantity) * Number(line.unitPrice);
+      const tax = subtotal * (Number(line.taxRate.rate) / 100);
+      return sum + subtotal + tax;
+    }, 0);
+
+    return {
+      id: q.id,
+      number: q.number,
+      clientName: q.client.name,
+      date: q.date.toISOString().split("T")[0],
+      expiryDate: q.expiryDate ? q.expiryDate.toISOString().split("T")[0] : null,
+      total,
+      status: q.status,
+    };
+  });
+
+  return { quotes: result, totalCount };
+}
+
+// --- Update quote status ---
+
+export async function updateQuoteStatus(
+  quoteId: string,
+  newStatus: string
+): Promise<QuoteActionResult> {
+  const validStatuses = ["bozza", "inviato", "accettato", "rifiutato", "scaduto"];
+  if (!validStatuses.includes(newStatus)) {
+    return { success: false, message: "Stato non valido" };
+  }
+
+  await prisma.quote.update({
+    where: { id: quoteId },
+    data: { status: newStatus as "bozza" | "inviato" | "accettato" | "rifiutato" | "scaduto" },
+  });
+
+  return { success: true, message: "Stato aggiornato" };
+}
+
 // --- Create quote ---
 
 export async function createQuote(
