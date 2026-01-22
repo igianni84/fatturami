@@ -151,3 +151,15 @@
   - Next.js 16 dynamic route params are a Promise: `params: Promise<{ id: string }>` must be awaited
   - Country dropdown with optgroup for EU/Extra-EU separation improves UX
 ---
+
+## 2026-01-22 - US-008
+- What was implemented: Soft delete functionality for clients - delete button on client list rows, confirmation dialog, server action setting deletedAt timestamp, and list auto-refreshes after deletion
+- Files changed:
+  - src/app/anagrafiche/clienti/actions.ts (added deleteClient server action)
+  - src/app/anagrafiche/clienti/ClientList.tsx (added delete button with confirmation modal, edit link in actions column)
+- **Learnings for future iterations:**
+  - DataTable `actions` prop accepts a render function `(item: T) => React.ReactNode` for per-row action buttons
+  - Confirmation dialog pattern: use useState with the item to delete, modal overlay with confirm/cancel buttons
+  - After server action mutation, use `router.refresh()` to refetch server component data without full page reload
+  - Soft delete is simply `prisma.client.update({ data: { deletedAt: new Date() } })` - getClients already filters by `deletedAt: null`
+---
