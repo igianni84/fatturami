@@ -611,3 +611,18 @@
   - bcryptjs is the pure JS implementation of bcrypt - no native compilation needed for Docker
   - The `cookies()` API in Next.js 16 returns a Promise that must be awaited
 ---
+
+## 2026-01-22 - US-033
+- What was implemented: Change password form in the settings page (/impostazioni) with current password verification, new password with confirmation field, minimum 8 character validation, and success/error feedback. Uses Zod schema with refinement for password match, getCurrentUser for auth context, and verifyPassword/hashPassword from auth utilities.
+- Files changed:
+  - src/app/(main)/impostazioni/actions.ts (added changePassword server action with Zod validation, current password check, and password update)
+  - src/app/(main)/impostazioni/ChangePasswordForm.tsx (new - client component form with password fields and feedback)
+  - src/app/(main)/impostazioni/page.tsx (updated - added ChangePasswordForm section below company data)
+  - prd.json (US-033 passes: true)
+- **Learnings for future iterations:**
+  - Zod .refine() can be used on object schemas for cross-field validation (e.g., password confirmation matching)
+  - getCurrentUser() from auth.ts returns userId/email from the JWT token - useful for identifying the current user in server actions
+  - Change password pattern: verify current password → hash new password → update user record
+  - Settings page can stack multiple card sections vertically with mb-6 spacing between them
+  - Form resets fields to empty on successful password change for security (no lingering password data in state)
+---
