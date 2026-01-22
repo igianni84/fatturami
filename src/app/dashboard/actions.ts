@@ -21,9 +21,15 @@ export interface RecentDocument {
   currency: string;
 }
 
+export interface MonthlyRevenue {
+  month: string;
+  revenue: number;
+}
+
 export interface DashboardData {
   metrics: DashboardMetrics;
   recentDocuments: RecentDocument[];
+  monthlyRevenue: MonthlyRevenue[];
 }
 
 // --- Period date range helper ---
@@ -171,8 +177,43 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
 
+  // Monthly revenue for current year chart
+  const currentYear = new Date().getFullYear();
+  const yearStart = new Date(currentYear, 0, 1);
+  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+
+  const yearInvoices = await prisma.invoice.findMany({
+    where: {
+      date: { gte: yearStart, lte: yearEnd },
+      status: { in: ["emessa", "inviata", "pagata"] },
+    },
+    include: {
+      lines: { include: { taxRate: true } },
+    },
+  });
+
+  const monthNames = [
+    "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+    "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
+  ];
+
+  const monthlyRevenue: MonthlyRevenue[] = monthNames.map((month, index) => {
+    const monthRevenue = yearInvoices
+      .filter((inv) => inv.date.getMonth() === index)
+      .reduce((sum, inv) => {
+        const invTotal = inv.lines.reduce((lineSum, line) => {
+          const lineAmount = Number(line.quantity) * Number(line.unitPrice);
+          const tax = lineAmount * (Number(line.taxRate.rate) / 100);
+          return lineSum + lineAmount + tax;
+        }, 0);
+        return sum + invTotal;
+      }, 0);
+    return { month, revenue: Math.round(monthRevenue * 100) / 100 };
+  });
+
   return {
     metrics: { revenue, expenses, balance, overdueCount },
     recentDocuments: recentDocs,
+    monthlyRevenue,
   };
 }

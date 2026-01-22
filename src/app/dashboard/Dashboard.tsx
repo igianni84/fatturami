@@ -3,6 +3,15 @@
 import { useState, useEffect } from "react";
 import { getDashboardData, DashboardData } from "./actions";
 import Link from "next/link";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const periodLabels: Record<string, string> = {
   month: "Mese",
@@ -86,6 +95,31 @@ export default function Dashboard({ initialData }: { initialData: DashboardData 
             {data.metrics.overdueCount}
           </p>
           <p className="text-xs text-gray-400 mt-1">Da incassare</p>
+        </div>
+      </div>
+
+      {/* Monthly Revenue Chart */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Fatturato Mensile {new Date().getFullYear()}
+        </h2>
+        <div className="w-full h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#6b7280" />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                stroke="#6b7280"
+                tickFormatter={(value: number) => `€${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
+              />
+              <Tooltip
+                formatter={(value) => [`€ ${Number(value).toFixed(2)}`, "Fatturato"]}
+                contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }}
+              />
+              <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
