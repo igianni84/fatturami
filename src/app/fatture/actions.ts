@@ -124,15 +124,17 @@ function getDefaultTaxRateType(vatRegime: VatRegime, hasValidVat: boolean): stri
 
 function generateDisclaimer(vatRegime: VatRegime, hasValidVat: boolean): string {
   switch (vatRegime) {
+    case VatRegime.nazionale:
+      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
     case VatRegime.intraUE:
       if (hasValidVat) {
         return "Operazione in reverse charge ai sensi dell'art. 196 Direttiva 2006/112/CE";
       }
-      return "";
+      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
     case VatRegime.extraUE:
       return "Operazione non soggetta a IVA ai sensi dell'art. 21 Ley 37/1992";
     default:
-      return "";
+      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
   }
 }
 
@@ -282,6 +284,85 @@ export async function updateInvoiceStatus(
   });
 
   return { success: true, message: "Stato aggiornato" };
+}
+
+// --- Fetch single invoice detail ---
+
+export interface InvoiceDetail {
+  id: string;
+  number: string;
+  date: string;
+  dueDate: string | null;
+  status: string;
+  currency: string;
+  exchangeRate: number;
+  disclaimer: string;
+  notes: string;
+  client: {
+    name: string;
+    vatNumber: string;
+    address: string;
+    country: string;
+    vatRegime: string;
+  };
+  lines: {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    taxRate: { name: string; rate: number };
+  }[];
+}
+
+export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    include: {
+      client: {
+        select: {
+          name: true,
+          vatNumber: true,
+          address: true,
+          country: true,
+          vatRegime: true,
+        },
+      },
+      lines: {
+        include: { taxRate: { select: { name: true, rate: true } } },
+      },
+    },
+  });
+
+  if (!invoice) return null;
+
+  return {
+    id: invoice.id,
+    number: invoice.number,
+    date: invoice.date.toISOString().split("T")[0],
+    dueDate: invoice.dueDate ? invoice.dueDate.toISOString().split("T")[0] : null,
+    status: invoice.status,
+    currency: invoice.currency,
+    exchangeRate: Number(invoice.exchangeRate),
+    disclaimer: invoice.disclaimer,
+    notes: invoice.notes || "",
+    client: {
+      name: invoice.client.name,
+      vatNumber: invoice.client.vatNumber || "",
+      address: invoice.client.address || "",
+      country: invoice.client.country,
+      vatRegime: invoice.client.vatRegime,
+    },
+    lines: invoice.lines.map((line) => ({
+      id: line.id,
+      description: line.description,
+      quantity: Number(line.quantity),
+      unitPrice: Number(line.unitPrice),
+      taxRate: {
+        name: line.taxRate.name,
+        rate: Number(line.taxRate.rate),
+      },
+    })),
+  };
 }
 
 // --- Export helper for client components ---
