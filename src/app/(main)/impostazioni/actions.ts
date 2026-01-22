@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getCurrentUser, verifyPassword, hashPassword } from "@/lib/auth";
 
 // NIF validation: 8 digits + letter (DNI) or letter + 7 digits + letter (NIE/CIF)
 const nifRegex = /^(\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i;
@@ -73,4 +74,71 @@ export async function saveCompany(
   }
 
   return { success: true, message: "Dati aziendali salvati con successo" };
+}
+
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "La password attuale è obbligatoria"),
+    newPassword: z
+      .string()
+      .min(8, "La nuova password deve avere almeno 8 caratteri"),
+    confirmPassword: z.string().min(1, "La conferma password è obbligatoria"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Le password non coincidono",
+    path: ["confirmPassword"],
+  });
+
+export type ChangePasswordFormData = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type ChangePasswordResult = {
+  success: boolean;
+  errors?: Record<string, string[]>;
+  message?: string;
+};
+
+export async function changePassword(
+  data: ChangePasswordFormData
+): Promise<ChangePasswordResult> {
+  const parsed = changePasswordSchema.safeParse(data);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, message: "Utente non autenticato" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: currentUser.userId },
+  });
+
+  if (!user) {
+    return { success: false, message: "Utente non trovato" };
+  }
+
+  const isValid = await verifyPassword(parsed.data.currentPassword, user.password);
+  if (!isValid) {
+    return {
+      success: false,
+      errors: { currentPassword: ["La password attuale non è corretta"] },
+    };
+  }
+
+  const hashedPassword = await hashPassword(parsed.data.newPassword);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  return { success: true, message: "Password aggiornata con successo" };
 }
