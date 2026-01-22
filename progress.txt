@@ -48,6 +48,9 @@
 - API Route Handlers use route.ts (not "use server"), support FormData via `request.formData()`
 - AI extraction API at /api/extract: POST with FormData file, returns ExtractionResult JSON
 - Anthropic SDK: `@anthropic-ai/sdk` package, use `type: "image"` for images and `type: "document"` for PDFs in content blocks
+- CSV parsing: use `papaparse` with `header: true` for column-name-keyed row objects
+- Multi-step wizard pattern: `step` state variable controls render (upload → mapping → preview → importing → result)
+- Sidebar navigation sections with children: `{ label, href, children: [{ label, href }] }` (see Importazioni)
 
 ---
 
@@ -414,4 +417,25 @@
   - Expense form maps AI result differently: supplierName → description, subtotal → amount, taxAmount → taxAmount (no line items)
   - Unmatched supplier pattern: show amber warning with supplier name and link to /anagrafiche/fornitori/nuovo for creating a new supplier
   - Loading state during extraction: disable file input + show spinner animation with `animate-spin` on a border-based circle
+---
+
+## 2026-01-22 - US-024
+- What was implemented: CSV import page at /import/csv with file upload, column mapping interface, preview of first 5 rows, data validation (dates, required fields, numeric amounts), import of issued invoices (creating Invoice + InvoiceLine records) and received invoices (creating PurchaseInvoice + PurchaseInvoiceLine records), auto-creation of clients/suppliers if not found, import report with counts and errors, toggle between issued/received invoice types, and duplicate detection
+- Files changed:
+  - src/app/import/csv/page.tsx (new - server component page with dynamic rendering)
+  - src/app/import/csv/CSVImporter.tsx (new - client component with multi-step flow: upload, mapping, preview, import, results)
+  - src/app/import/csv/actions.ts (new - server action importCSV with validation, client/supplier creation, invoice/purchase creation)
+  - src/components/Sidebar.tsx (updated - added Importazioni section with CSV and PDF links)
+  - package.json, package-lock.json (added papaparse + @types/papaparse)
+- **Learnings for future iterations:**
+  - PapaParser handles CSV parsing with `header: true` option which returns data as array of objects keyed by column names
+  - Multi-step wizard pattern: use a `step` state variable to control which section renders (upload → mapping → preview → importing → result)
+  - Column mapping pattern: store mapping as `{ systemField: csvColumnName }` object, auto-detect by comparing field labels/keys with CSV headers
+  - For issued invoices, group CSV rows by invoice number to create one Invoice with multiple InvoiceLine records
+  - For received invoices, group by supplier+invoiceNumber to create one PurchaseInvoice with multiple PurchaseInvoiceLine records
+  - Date parsing supports multiple formats: ISO (YYYY-MM-DD), EU (DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY), and fallback to native Date
+  - Number parsing handles comma as decimal separator (common in EU CSV exports)
+  - Auto-creation of clients/suppliers uses a Map for deduplication within the import batch
+  - Duplicate invoice detection: check `prisma.invoice.findUnique({ where: { number } })` before creating
+  - Import type toggle (issued/received) resets the entire wizard state when changed
 ---
