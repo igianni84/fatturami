@@ -2,6 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { VATReportData, getVATReport } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { downloadCSV } from "@/lib/csv-export";
 
 interface VATReportProps {
   initialData: VATReportData;
@@ -24,15 +43,60 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
 
   useEffect(() => {
     if (year === initialYear && quarter === initialQuarter) return;
+
+    let cancelled = false;
     setLoading(true);
-    getVATReport(year, quarter).then((result) => {
-      setData(result);
-      setLoading(false);
-    });
-  }, [year, quarter, initialYear, initialQuarter]);
+
+    getVATReport(year, quarter)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch(() => {
+        // Server action failed — keep previous data visible
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // initialYear/initialQuarter are constant props, excluded intentionally
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, quarter]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  function exportBreakdownCSV() {
+    const headers = ["Aliquota", "Tasso %", "Base vendite", "IVA vendite", "Base acquisti", "IVA acquisti", "Saldo"];
+    const rows = data.breakdown.map((item) => [
+      `${item.rateName} (${item.rate}%)`,
+      item.rate,
+      item.salesBase.toFixed(2),
+      item.salesTax.toFixed(2),
+      item.purchasesBase.toFixed(2),
+      item.purchasesTax.toFixed(2),
+      (item.salesTax - item.purchasesTax).toFixed(2),
+    ]);
+    rows.push(["Totale", "", data.ivaRepercutidaBase.toFixed(2), data.ivaRepercutida.toFixed(2), data.ivaSoportadaDeducibleBase.toFixed(2), data.ivaSoportadaDeducible.toFixed(2), data.ivaResult.toFixed(2)]);
+    downloadCSV(`iva-dettaglio-Q${quarter}-${year}.csv`, headers, rows);
+  }
+
+  function exportIntraEUCSV() {
+    const headers = ["Cliente", "Partita IVA", "Paese", "Fattura", "Data", "Importo"];
+    const rows = data.intraEUOperations.map((op) => [
+      op.clientName,
+      op.vatNumber,
+      op.country,
+      op.invoiceNumber,
+      op.date,
+      op.amount.toFixed(2),
+    ]);
+    const total = data.intraEUOperations.reduce((sum, op) => sum + op.amount, 0);
+    rows.push(["Totale", "", "", "", "", total.toFixed(2)]);
+    downloadCSV(`intra-ue-Q${quarter}-${year}.csv`, headers, rows);
+  }
 
   return (
     <div className="space-y-6">
@@ -43,155 +107,179 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
       {/* Period selector */}
       <div className="flex items-center gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Anno</label>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Anno</label>
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Trimestre</label>
-          <div className="mt-1 flex gap-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Trimestre</label>
+          <div className="flex gap-2">
             {[1, 2, 3, 4].map((q) => (
-              <button
+              <Button
                 key={q}
+                variant={quarter === q ? "default" : "outline"}
+                size="sm"
                 onClick={() => setQuarter(q)}
-                className={`rounded-md px-4 py-2 text-sm font-medium ${
-                  quarter === q
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
               >
                 Q{q}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className={loading ? "opacity-60" : ""}>
+      <div className={`transition-opacity duration-200 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
         {/* Summary cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">IVA Repercutida</h3>
-            <p className="text-xs text-gray-400 mt-1">IVA sulle vendite nazionali</p>
-            <p className="mt-2 text-2xl font-bold text-blue-600">{formatCurrency(data.ivaRepercutida)}</p>
-            <p className="text-sm text-gray-500 mt-1">Base imponibile: {formatCurrency(data.ivaRepercutidaBase)}</p>
-          </div>
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">IVA Soportada Deducible</h3>
-            <p className="text-xs text-gray-400 mt-1">IVA deducibile sugli acquisti</p>
-            <p className="mt-2 text-2xl font-bold text-green-600">{formatCurrency(data.ivaSoportadaDeducible)}</p>
-            <p className="text-sm text-gray-500 mt-1">Base imponibile: {formatCurrency(data.ivaSoportadaDeducibleBase)}</p>
-          </div>
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Risultato IVA</h3>
-            <p className="text-xs text-gray-400 mt-1">
-              {data.ivaResult >= 0 ? "Da versare" : "A credito"}
-            </p>
-            <p className={`mt-2 text-2xl font-bold ${data.ivaResult >= 0 ? "text-red-600" : "text-green-600"}`}>
-              {formatCurrency(data.ivaResult)}
-            </p>
-          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">IVA Repercutida</CardTitle>
+              <p className="text-xs text-muted-foreground">IVA sulle vendite nazionali</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(data.ivaRepercutida)}</p>
+              <p className="text-sm text-muted-foreground mt-1">Base imponibile: {formatCurrency(data.ivaRepercutidaBase)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">IVA Soportada Deducible</CardTitle>
+              <p className="text-xs text-muted-foreground">IVA deducibile sugli acquisti</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(data.ivaSoportadaDeducible)}</p>
+              <p className="text-sm text-muted-foreground mt-1">Base imponibile: {formatCurrency(data.ivaSoportadaDeducibleBase)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Risultato IVA</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {data.ivaResult >= 0 ? "Da versare" : "A credito"}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${data.ivaResult >= 0 ? "text-red-600" : "text-green-600"}`}>
+                {formatCurrency(data.ivaResult)}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Breakdown by rate */}
         {data.breakdown.length > 0 && (
-          <div className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Dettaglio per aliquota</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Aliquota</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Base vendite</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">IVA vendite</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Base acquisti</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">IVA acquisti</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Saldo</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <Card className="mt-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Dettaglio per aliquota</CardTitle>
+              <Button variant="outline" size="sm" onClick={exportBreakdownCSV}>
+                Esporta CSV
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Aliquota</TableHead>
+                    <TableHead className="text-right">Base vendite</TableHead>
+                    <TableHead className="text-right">IVA vendite</TableHead>
+                    <TableHead className="text-right">Base acquisti</TableHead>
+                    <TableHead className="text-right">IVA acquisti</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {data.breakdown.map((item, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="px-4 py-2 text-left">
+                    <TableRow key={index}>
+                      <TableCell>
                         {item.rateName} ({item.rate}%)
-                      </td>
-                      <td className="px-4 py-2 text-right">{formatCurrency(item.salesBase)}</td>
-                      <td className="px-4 py-2 text-right text-blue-600">{formatCurrency(item.salesTax)}</td>
-                      <td className="px-4 py-2 text-right">{formatCurrency(item.purchasesBase)}</td>
-                      <td className="px-4 py-2 text-right text-green-600">{formatCurrency(item.purchasesTax)}</td>
-                      <td className="px-4 py-2 text-right font-medium">
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.salesBase)}</TableCell>
+                      <TableCell className="text-right text-blue-600">{formatCurrency(item.salesTax)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.purchasesBase)}</TableCell>
+                      <TableCell className="text-right text-green-600">{formatCurrency(item.purchasesTax)}</TableCell>
+                      <TableCell className="text-right font-medium">
                         {formatCurrency(item.salesTax - item.purchasesTax)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="px-4 py-2 text-left">Totale</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(data.ivaRepercutidaBase)}</td>
-                    <td className="px-4 py-2 text-right text-blue-600">{formatCurrency(data.ivaRepercutida)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(data.ivaSoportadaDeducibleBase)}</td>
-                    <td className="px-4 py-2 text-right text-green-600">{formatCurrency(data.ivaSoportadaDeducible)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(data.ivaResult)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell>Totale</TableCell>
+                    <TableCell className="text-right">{formatCurrency(data.ivaRepercutidaBase)}</TableCell>
+                    <TableCell className="text-right text-blue-600">{formatCurrency(data.ivaRepercutida)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(data.ivaSoportadaDeducibleBase)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatCurrency(data.ivaSoportadaDeducible)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(data.ivaResult)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </CardContent>
+          </Card>
         )}
 
         {/* Intra-EU operations */}
-        <div className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Operazioni Intra-UE (Modelo 349)</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            Riepilogo delle operazioni con soggetti intracomunitari nel trimestre
-          </p>
-          {data.intraEUOperations.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">Nessuna operazione intra-UE nel periodo selezionato.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Cliente</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Partita IVA</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Paese</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Fattura</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Data</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Importo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.intraEUOperations.map((op, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="px-4 py-2">{op.clientName}</td>
-                      <td className="px-4 py-2 font-mono text-xs">{op.vatNumber}</td>
-                      <td className="px-4 py-2">{op.country}</td>
-                      <td className="px-4 py-2">{op.invoiceNumber}</td>
-                      <td className="px-4 py-2">{op.date}</td>
-                      <td className="px-4 py-2 text-right">{formatCurrency(op.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-50 font-semibold">
-                    <td colSpan={5} className="px-4 py-2 text-left">Totale operazioni intra-UE</td>
-                    <td className="px-4 py-2 text-right">
-                      {formatCurrency(data.intraEUOperations.reduce((sum, op) => sum + op.amount, 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Operazioni Intra-UE (Modelo 349)</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Riepilogo delle operazioni con soggetti intracomunitari nel trimestre
+              </p>
             </div>
-          )}
-        </div>
+            {data.intraEUOperations.length > 0 && (
+              <Button variant="outline" size="sm" onClick={exportIntraEUCSV}>
+                Esporta CSV
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {data.intraEUOperations.length === 0 ? (
+              <p className="text-muted-foreground italic">Nessuna operazione intra-UE nel periodo selezionato.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Partita IVA</TableHead>
+                    <TableHead>Paese</TableHead>
+                    <TableHead>Fattura</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Importo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.intraEUOperations.map((op, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{op.clientName}</TableCell>
+                      <TableCell className="font-mono text-xs">{op.vatNumber}</TableCell>
+                      <TableCell>{op.country}</TableCell>
+                      <TableCell>{op.invoiceNumber}</TableCell>
+                      <TableCell>{op.date}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(op.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={5}>Totale operazioni intra-UE</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(data.intraEUOperations.reduce((sum, op) => sum + op.amount, 0))}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

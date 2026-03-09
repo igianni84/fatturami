@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getDashboardData, DashboardData } from "./actions";
+import { useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { type DashboardData } from "./actions";
 import Link from "next/link";
 import {
   BarChart,
@@ -12,6 +13,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const periodLabels: Record<string, string> = {
   month: "Mese",
@@ -24,147 +30,184 @@ function formatCurrency(amount: number, currency: string = "EUR"): string {
   return `${symbol} ${amount.toFixed(2)}`;
 }
 
-export default function Dashboard({ initialData }: { initialData: DashboardData }) {
-  const [period, setPeriod] = useState("month");
-  const [data, setData] = useState<DashboardData>(initialData);
-  const [loading, setLoading] = useState(false);
+export default function Dashboard({ data, period }: { data: DashboardData; period: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getDashboardData(period);
-        setData(result);
-      } finally {
-        setLoading(false);
-      }
+  const handlePeriodChange = (newPeriod: string) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (newPeriod === "month") {
+      sp.delete("period");
+    } else {
+      sp.set("period", newPeriod);
     }
-    fetchData();
-  }, [period]);
+    const query = sp.toString();
+    startTransition(() => {
+      router.push(query ? `/?${query}` : "/");
+    });
+  };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1">
           {Object.entries(periodLabels).map(([key, label]) => (
-            <button
+            <Button
               key={key}
-              onClick={() => setPeriod(key)}
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${
-                period === key
-                  ? "bg-white text-gray-900 shadow-sm font-medium"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              variant={period === key ? "default" : "outline"}
+              size="sm"
+              onClick={() => handlePeriodChange(key)}
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
       {/* Metric Cards */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${loading ? "opacity-60" : ""}`}>
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-500 mb-1">Fatturato</p>
-          <p className="text-2xl font-bold text-green-600">
-            {formatCurrency(data.metrics.revenue)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Fatture emesse nel periodo</p>
+      {isPending ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32 mb-1" />
+                <Skeleton className="h-3 w-40" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Fatturato</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-600">
+                {formatCurrency(data.metrics.revenue)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Fatture emesse nel periodo</p>
+            </CardContent>
+          </Card>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-500 mb-1">Spese</p>
-          <p className="text-2xl font-bold text-red-600">
-            {formatCurrency(data.metrics.expenses)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Acquisti + spese nel periodo</p>
-        </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Spese</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-600">
+                {formatCurrency(data.metrics.expenses)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Acquisti + spese nel periodo</p>
+            </CardContent>
+          </Card>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-500 mb-1">Saldo</p>
-          <p className={`text-2xl font-bold ${data.metrics.balance >= 0 ? "text-blue-600" : "text-red-600"}`}>
-            {formatCurrency(data.metrics.balance)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Fatturato - Spese</p>
-        </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Saldo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${data.metrics.balance >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                {formatCurrency(data.metrics.balance)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Fatturato - Spese</p>
+            </CardContent>
+          </Card>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-500 mb-1">Fatture Scadute</p>
-          <p className={`text-2xl font-bold ${data.metrics.overdueCount > 0 ? "text-orange-600" : "text-gray-900"}`}>
-            {data.metrics.overdueCount}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Da incassare</p>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Fatture Scadute</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${data.metrics.overdueCount > 0 ? "text-orange-600" : "text-gray-900"}`}>
+                {data.metrics.overdueCount}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Da incassare</p>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      )}
 
       {/* Monthly Revenue Chart */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Fatturato Mensile {new Date().getFullYear()}
-        </h2>
-        <div className="w-full h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#6b7280" />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                stroke="#6b7280"
-                tickFormatter={(value: number) => `€${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
-              />
-              <Tooltip
-                formatter={(value) => [`€ ${Number(value).toFixed(2)}`, "Fatturato"]}
-                contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }}
-              />
-              <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Fatturato Mensile {new Date().getFullYear()}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#6b7280" />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  stroke="#6b7280"
+                  tickFormatter={(value: number) => `€${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
+                />
+                <Tooltip
+                  formatter={(value) => [`€ ${Number(value).toFixed(2)}`, "Fatturato"]}
+                  contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                />
+                <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Documents */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Documenti Recenti</h2>
-        </div>
-        <div className="divide-y divide-gray-100">
+      <Card>
+        <CardHeader>
+          <CardTitle>Documenti Recenti</CardTitle>
+        </CardHeader>
+        <CardContent>
           {data.recentDocuments.length === 0 ? (
-            <p className="px-6 py-4 text-gray-500 text-sm">Nessun documento recente</p>
+            <p className="text-muted-foreground text-sm">Nessun documento recente</p>
           ) : (
-            data.recentDocuments.map((doc) => (
-              <div key={`${doc.type}-${doc.id}`} className="px-6 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      doc.type === "invoice"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-purple-100 text-purple-700"
-                    }`}
-                  >
-                    {doc.type === "invoice" ? "Fattura" : "Acquisto"}
-                  </span>
-                  <div>
-                    <Link
-                      href={doc.type === "invoice" ? `/fatture/${doc.id}` : `/acquisti`}
-                      className="text-sm font-medium text-gray-900 hover:text-blue-600"
-                    >
-                      {doc.number}
-                    </Link>
-                    <p className="text-xs text-gray-500">{doc.name}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {formatCurrency(doc.total, doc.currency)}
-                  </p>
-                  <p className="text-xs text-gray-500">{doc.date}</p>
-                </div>
-              </div>
-            ))
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Documento</TableHead>
+                  <TableHead className="text-right">Importo</TableHead>
+                  <TableHead className="text-right">Data</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recentDocuments.map((doc) => (
+                  <TableRow key={`${doc.type}-${doc.id}`}>
+                    <TableCell>
+                      <Badge variant={doc.type === "invoice" ? "default" : "secondary"}>
+                        {doc.type === "invoice" ? "Fattura" : "Acquisto"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={doc.type === "invoice" ? `/fatture/${doc.id}` : `/acquisti`}
+                        className="font-medium hover:text-blue-600"
+                      >
+                        {doc.number}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{doc.name}</p>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(doc.total, doc.currency)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground text-xs">
+                      {doc.date}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

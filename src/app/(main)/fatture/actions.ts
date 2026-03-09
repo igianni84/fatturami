@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { VatRegime, InvoiceStatus, Prisma } from "@prisma/client";
@@ -143,6 +144,11 @@ function generateDisclaimer(vatRegime: VatRegime, hasValidVat: boolean): string 
 export async function createInvoice(
   data: InvoiceFormData
 ): Promise<InvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = invoiceSchema.safeParse(data);
   if (!result.success) {
     const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>;
@@ -157,14 +163,14 @@ export async function createInvoice(
 
   const { clientId, date, dueDate, currency, exchangeRate, notes, lines } = result.data;
 
-  // Fetch client to determine VAT regime and disclaimer
+  // Fetch client to determine VAT regime and disclaimer (exclude soft-deleted)
   const client = await prisma.client.findUnique({
-    where: { id: clientId },
+    where: { id: clientId, deletedAt: null },
     select: { vatRegime: true, vatNumber: true },
   });
 
   if (!client) {
-    return { success: false, errors: { clientId: ["Cliente non trovato"] } };
+    return { success: false, errors: { clientId: ["Cliente non trovato o non più attivo"] } };
   }
 
   const disclaimer = generateDisclaimer(client.vatRegime, !!client.vatNumber);
@@ -271,19 +277,92 @@ export async function getInvoices(params: {
 
 export async function updateInvoiceStatus(
   invoiceId: string,
-  newStatus: string
+  newStatus: string,
+  paidAt?: string
 ): Promise<InvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const validStatuses = ["bozza", "emessa", "inviata", "pagata", "scaduta"];
   if (!validStatuses.includes(newStatus)) {
     return { success: false, message: "Stato non valido" };
   }
 
+  // Validate state transitions server-side
+  const statusTransitions: Record<string, string[]> = {
+    bozza: ["emessa"],
+    emessa: ["inviata", "pagata", "scaduta"],
+    inviata: ["pagata", "scaduta"],
+    pagata: [],
+    scaduta: [],
+  };
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { status: true },
+  });
+
+  if (!invoice) {
+    return { success: false, message: "Fattura non trovata" };
+  }
+
+  const allowedTransitions = statusTransitions[invoice.status] || [];
+  if (!allowedTransitions.includes(newStatus)) {
+    return {
+      success: false,
+      message: `Transizione non consentita: ${invoice.status} → ${newStatus}`,
+    };
+  }
+
+  let paidAtDate: Date | undefined;
+  if (newStatus === "pagata") {
+    if (!paidAt) {
+      return { success: false, message: "La data di pagamento è obbligatoria" };
+    }
+    paidAtDate = new Date(paidAt);
+    if (isNaN(paidAtDate.getTime())) {
+      return { success: false, message: "Data di pagamento non valida" };
+    }
+  }
+
   await prisma.invoice.update({
     where: { id: invoiceId },
-    data: { status: newStatus as "bozza" | "emessa" | "inviata" | "pagata" | "scaduta" },
+    data: {
+      status: newStatus as InvoiceStatus,
+      ...(paidAtDate ? { paidAt: paidAtDate } : {}),
+    },
   });
 
   return { success: true, message: "Stato aggiornato" };
+}
+
+// --- Delete invoice ---
+
+export async function deleteInvoice(
+  invoiceId: string
+): Promise<InvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { status: true, creditNotes: { select: { id: true } } },
+  });
+
+  if (!invoice) {
+    return { success: false, message: "Fattura non trovata" };
+  }
+
+  if (invoice.creditNotes.length > 0) {
+    return { success: false, message: "Impossibile eliminare: la fattura ha note di credito collegate" };
+  }
+
+  await prisma.invoice.delete({ where: { id: invoiceId } });
+  return { success: true, message: "Fattura eliminata" };
 }
 
 // --- Fetch single invoice detail ---
@@ -293,6 +372,7 @@ export interface InvoiceDetail {
   number: string;
   date: string;
   dueDate: string | null;
+  paidAt: string | null;
   status: string;
   currency: string;
   exchangeRate: number;
@@ -340,6 +420,7 @@ export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
     number: invoice.number,
     date: invoice.date.toISOString().split("T")[0],
     dueDate: invoice.dueDate ? invoice.dueDate.toISOString().split("T")[0] : null,
+    paidAt: invoice.paidAt ? invoice.paidAt.toISOString().split("T")[0] : null,
     status: invoice.status,
     currency: invoice.currency,
     exchangeRate: Number(invoice.exchangeRate),
@@ -371,7 +452,7 @@ export async function getDefaultTaxRateForClient(
   clientId: string
 ): Promise<{ taxRateType: string; vatRegime: VatRegime } | null> {
   const client = await prisma.client.findUnique({
-    where: { id: clientId },
+    where: { id: clientId, deletedAt: null },
     select: { vatRegime: true, vatNumber: true },
   });
   if (!client) return null;
@@ -387,6 +468,11 @@ export async function getDefaultTaxRateForClient(
 export async function convertQuoteToInvoice(
   quoteId: string
 ): Promise<{ success: boolean; invoiceId?: string; message?: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   // Fetch quote with lines and client info
   const quote = await prisma.quote.findUnique({
     where: { id: quoteId },
@@ -402,6 +488,15 @@ export async function convertQuoteToInvoice(
 
   if (quote.status !== "accettato") {
     return { success: false, message: "Solo i preventivi accettati possono essere convertiti" };
+  }
+
+  // Verify client is still active (not soft-deleted)
+  const activeClient = await prisma.client.findUnique({
+    where: { id: quote.client.id, deletedAt: null },
+    select: { id: true },
+  });
+  if (!activeClient) {
+    return { success: false, message: "Il cliente associato al preventivo non è più attivo" };
   }
 
   // Generate disclaimer and invoice number

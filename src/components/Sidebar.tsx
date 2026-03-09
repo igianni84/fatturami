@@ -1,8 +1,13 @@
 "use client";
 
+import { useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/(main)/logout/actions";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
   label: string;
@@ -52,12 +57,15 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 
   if (item.children) {
     const isParentActive = pathname.startsWith(item.href);
+    const groupId = `nav-group${item.href.replace(/\//g, "-")}`;
     return (
-      <div>
+      <div role="group" aria-labelledby={groupId}>
         <span
-          className={`block px-4 py-2 text-sm font-semibold uppercase tracking-wider ${
-            isParentActive ? "text-blue-400" : "text-gray-400"
-          }`}
+          id={groupId}
+          className={cn(
+            "block px-4 py-2 text-sm font-semibold uppercase tracking-wider",
+            isParentActive ? "text-sidebar-primary" : "text-sidebar-foreground/50"
+          )}
         >
           {item.label}
         </span>
@@ -71,42 +79,84 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   }
 
   return (
-    <Link
-      href={item.href}
-      className={`block rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+    <Button
+      variant="ghost"
+      asChild
+      className={cn(
+        "w-full justify-start text-sm font-medium",
         isActive
-          ? "bg-blue-600 text-white"
-          : "text-gray-300 hover:bg-gray-700 hover:text-white"
-      }`}
+          ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      )}
     >
-      {item.label}
-    </Link>
+      <Link href={item.href} aria-current={isActive ? "page" : undefined}>{item.label}</Link>
+    </Button>
   );
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
+  const stableOnClose = useCallback(onClose, [onClose]);
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    stableOnClose();
+  }, [pathname, stableOnClose]);
+
   return (
-    <aside className="flex h-screen w-64 flex-col bg-gray-800">
-      <div className="flex h-16 items-center justify-center border-b border-gray-700">
-        <h1 className="text-lg font-bold text-white">Fatturazione</h1>
-      </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {navItems.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} />
-        ))}
-      </nav>
-      <div className="border-t border-gray-700 p-4">
-        <form action={logout}>
-          <button
-            type="submit"
-            className="w-full rounded-md px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar transition-transform duration-200 ease-in-out md:static md:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex h-14 items-center justify-between px-4">
+          <h1 className="text-lg font-bold text-sidebar-foreground">Fatturazione</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
+            onClick={onClose}
+            aria-label="Chiudi menu"
           >
-            Esci
-          </button>
-        </form>
-      </div>
-    </aside>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <Separator className="bg-sidebar-border" />
+        <nav aria-label="Menu principale" className="flex-1 space-y-1 overflow-y-auto p-4">
+          {navItems.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} />
+          ))}
+        </nav>
+        <Separator className="bg-sidebar-border" />
+        <div className="p-4">
+          <form action={logout}>
+            <Button
+              type="submit"
+              variant="ghost"
+              className="w-full justify-start text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              Esci
+            </Button>
+          </form>
+        </div>
+      </aside>
+    </>
   );
 }

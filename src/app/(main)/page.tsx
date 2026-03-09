@@ -3,8 +3,18 @@ import Dashboard from "./dashboard/Dashboard";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const initialData = await getDashboardData("month");
+const VALID_PERIODS = ["month", "quarter", "year"];
 
-  return <Dashboard initialData={initialData} />;
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const params = await searchParams;
+  const period = VALID_PERIODS.includes(params.period || "")
+    ? params.period!
+    : "month";
+
+  const data = await getDashboardData(period);
+  return <Dashboard data={data} period={period} />;
 }

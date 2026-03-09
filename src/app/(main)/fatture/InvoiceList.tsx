@@ -3,8 +3,22 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
-import { InvoiceListItem, updateInvoiceStatus } from "./actions";
+import { InvoiceListItem, updateInvoiceStatus, deleteInvoice } from "./actions";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PaymentDateDialog } from "@/components/PaymentDateDialog";
+import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
+import { getStatusColor } from "@/lib/status-colors";
 
 interface InvoiceListProps {
   invoices: InvoiceListItem[];
@@ -12,14 +26,6 @@ interface InvoiceListProps {
   page: number;
   currentStatus: string;
 }
-
-const statusColors: Record<string, string> = {
-  bozza: "bg-gray-100 text-gray-800",
-  emessa: "bg-blue-100 text-blue-800",
-  inviata: "bg-indigo-100 text-indigo-800",
-  pagata: "bg-green-100 text-green-800",
-  scaduta: "bg-red-100 text-red-800",
-};
 
 const statusLabels: Record<string, string> = {
   bozza: "Bozza",
@@ -55,7 +61,8 @@ export default function InvoiceList({
 }: InvoiceListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<InvoiceListItem | null>(null);
+  const [paymentConfirm, setPaymentConfirm] = useState<InvoiceListItem | null>(null);
 
   const navigateTo = (params: { page?: number; status?: string }) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -74,8 +81,32 @@ export default function InvoiceList({
   };
 
   const handleStatusChange = async (invoiceId: string, newStatus: string) => {
-    setStatusMenuId(null);
+    if (newStatus === "pagata") {
+      const inv = invoices.find((i) => i.id === invoiceId);
+      setPaymentConfirm(inv || null);
+      return;
+    }
     await updateInvoiceStatus(invoiceId, newStatus);
+    router.refresh();
+  };
+
+  const handlePaymentConfirm = async (paidAt: string) => {
+    if (!paymentConfirm) return;
+    const result = await updateInvoiceStatus(paymentConfirm.id, "pagata", paidAt);
+    setPaymentConfirm(null);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'aggiornamento");
+    }
+    router.refresh();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    const result = await deleteInvoice(deleteConfirm.id);
+    setDeleteConfirm(null);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'eliminazione");
+    }
     router.refresh();
   };
 
@@ -83,11 +114,6 @@ export default function InvoiceList({
     { key: "number", header: "Numero" },
     { key: "clientName", header: "Cliente" },
     { key: "date", header: "Data" },
-    {
-      key: "dueDate",
-      header: "Scadenza",
-      render: (item) => item.dueDate || "—",
-    },
     {
       key: "total",
       header: "Totale",
@@ -101,11 +127,9 @@ export default function InvoiceList({
       key: "status",
       header: "Stato",
       render: (item) => (
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[item.status] || "bg-gray-100 text-gray-800"}`}
-        >
+        <Badge variant="outline" className={getStatusColor(item.status)}>
           {statusLabels[item.status] || item.status}
-        </span>
+        </Badge>
       ),
     },
   ];
@@ -114,27 +138,21 @@ export default function InvoiceList({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Fatture</h1>
-        <Link
-          href="/fatture/nuova"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-        >
-          + Nuova Fattura
-        </Link>
+        <Button asChild>
+          <Link href="/fatture/nuova">+ Nuova Fattura</Link>
+        </Button>
       </div>
 
       <div className="mb-4 flex gap-2 flex-wrap">
         {allStatuses.map((status) => (
-          <button
+          <Button
             key={status}
+            variant={currentStatus === status ? "default" : "outline"}
+            size="sm"
             onClick={() => navigateTo({ status })}
-            className={`px-3 py-1.5 text-sm rounded-md border ${
-              currentStatus === status
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-            }`}
           >
             {status === "tutti" ? "Tutti" : statusLabels[status]}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -144,50 +162,61 @@ export default function InvoiceList({
         totalCount={totalCount}
         page={page}
         pageSize={10}
+        emptyMessage="Nessuna fattura trovata"
         onPageChange={(newPage) => navigateTo({ page: newPage })}
+        onRowClick={(item) => router.push(`/fatture/${item.id}`)}
         actions={(item) => (
-          <div className="flex gap-2 justify-end items-center relative">
-            {item.status === "bozza" && (
-              <Link
-                href={`/fatture/${item.id}/modifica`}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Azioni fattura">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {item.status === "bozza" && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/fatture/${item.id}/modifica`}>Modifica</Link>
+                </DropdownMenuItem>
+              )}
+              {statusTransitions[item.status]?.length > 0 && (
+                <>
+                  {statusTransitions[item.status].map((status) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onClick={() => handleStatusChange(item.id, status)}
+                    >
+                      Segna come {statusLabels[status].toLowerCase()}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirm(item)}
               >
-                Modifica
-              </Link>
-            )}
-            <Link
-              href={`/fatture/${item.id}`}
-              className="text-gray-600 hover:text-gray-800 text-sm font-medium"
-            >
-              Dettaglio
-            </Link>
-            {statusTransitions[item.status]?.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() =>
-                    setStatusMenuId(statusMenuId === item.id ? null : item.id)
-                  }
-                  className="text-gray-600 hover:text-gray-800 text-sm font-medium border border-gray-300 rounded px-2 py-1"
-                >
-                  Cambia stato
-                </button>
-                {statusMenuId === item.id && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px]">
-                    {statusTransitions[item.status].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => handleStatusChange(item.id, status)}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                      >
-                        {statusLabels[status]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Conferma eliminazione"
+        description={<>Sei sicuro di voler eliminare la fattura <strong>{deleteConfirm?.number}</strong>? Questa azione non può essere annullata.</>}
+        confirmLabel="Elimina"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
+
+      <PaymentDateDialog
+        open={!!paymentConfirm}
+        onOpenChange={(open) => !open && setPaymentConfirm(null)}
+        onConfirm={handlePaymentConfirm}
+        invoiceNumber={paymentConfirm?.number}
       />
     </div>
   );

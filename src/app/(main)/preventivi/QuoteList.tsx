@@ -3,24 +3,28 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
-import { QuoteListItem, updateQuoteStatus } from "./actions";
+import { QuoteListItem, updateQuoteStatus, deleteQuote } from "./actions";
 import { convertQuoteToInvoice } from "@/app/(main)/fatture/actions";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
+import { getStatusColor } from "@/lib/status-colors";
 
 interface QuoteListProps {
   quotes: QuoteListItem[];
   totalCount: number;
   page: number;
 }
-
-const statusColors: Record<string, string> = {
-  bozza: "bg-gray-100 text-gray-800",
-  inviato: "bg-blue-100 text-blue-800",
-  accettato: "bg-green-100 text-green-800",
-  rifiutato: "bg-red-100 text-red-800",
-  scaduto: "bg-yellow-100 text-yellow-800",
-  convertito: "bg-purple-100 text-purple-800",
-};
 
 const statusLabels: Record<string, string> = {
   bozza: "Bozza",
@@ -49,8 +53,8 @@ function formatCurrency(amount: number): string {
 export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
   const [converting, setConverting] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<QuoteListItem | null>(null);
 
   const navigateTo = (params: { page?: number }) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -61,7 +65,6 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
   };
 
   const handleStatusChange = async (quoteId: string, newStatus: string) => {
-    setStatusMenuId(null);
     await updateQuoteStatus(quoteId, newStatus);
     router.refresh();
   };
@@ -73,8 +76,18 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
       router.push(`/fatture/${result.invoiceId}`);
     } else {
       setConverting(null);
-      alert(result.message || "Errore durante la conversione");
+      toast.error(result.message || "Errore durante la conversione");
     }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    const result = await deleteQuote(deleteConfirm.id);
+    setDeleteConfirm(null);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'eliminazione");
+    }
+    router.refresh();
   };
 
   const columns: Column<QuoteListItem>[] = [
@@ -91,11 +104,9 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
       key: "status",
       header: "Stato",
       render: (item) => (
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[item.status] || "bg-gray-100 text-gray-800"}`}
-        >
+        <Badge variant="outline" className={getStatusColor(item.status)}>
           {statusLabels[item.status] || item.status}
-        </span>
+        </Badge>
       ),
     },
   ];
@@ -104,12 +115,9 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Preventivi</h1>
-        <Link
-          href="/preventivi/nuovo"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-        >
-          + Nuovo Preventivo
-        </Link>
+        <Button asChild>
+          <Link href="/preventivi/nuovo">+ Nuovo Preventivo</Link>
+        </Button>
       </div>
 
       <DataTable
@@ -118,59 +126,59 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
         totalCount={totalCount}
         page={page}
         pageSize={10}
+        emptyMessage="Nessun preventivo trovato"
         onPageChange={(newPage) => navigateTo({ page: newPage })}
+        onRowClick={(item) => router.push(`/preventivi/${item.id}`)}
         actions={(item) => (
-          <div className="flex gap-2 justify-end items-center relative">
-            <Link
-              href={`/preventivi/${item.id}`}
-              className="text-gray-600 hover:text-gray-800 text-sm font-medium"
-            >
-              Dettagli
-            </Link>
-            {item.status === "bozza" && (
-              <Link
-                href={`/preventivi/${item.id}/modifica`}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                Modifica
-              </Link>
-            )}
-            {item.status === "accettato" && (
-              <button
-                onClick={() => handleConvert(item.id)}
-                disabled={converting === item.id}
-                className="text-purple-600 hover:text-purple-800 text-sm font-medium disabled:opacity-50"
-              >
-                {converting === item.id ? "Conversione..." : "Converti in fattura"}
-              </button>
-            )}
-            {statusTransitions[item.status]?.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() =>
-                    setStatusMenuId(statusMenuId === item.id ? null : item.id)
-                  }
-                  className="text-gray-600 hover:text-gray-800 text-sm font-medium border border-gray-300 rounded px-2 py-1"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Azioni preventivo">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {item.status === "bozza" && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/preventivi/${item.id}/modifica`}>Modifica</Link>
+                </DropdownMenuItem>
+              )}
+              {item.status === "accettato" && (
+                <DropdownMenuItem
+                  onClick={() => handleConvert(item.id)}
+                  disabled={converting === item.id}
                 >
-                  Cambia stato
-                </button>
-                {statusMenuId === item.id && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px]">
-                    {statusTransitions[item.status].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => handleStatusChange(item.id, status)}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                      >
-                        {statusLabels[status]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  {converting === item.id ? "Conversione..." : "Converti in fattura"}
+                </DropdownMenuItem>
+              )}
+              {statusTransitions[item.status]?.length > 0 &&
+                statusTransitions[item.status].map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onClick={() => handleStatusChange(item.id, status)}
+                  >
+                    Segna come {statusLabels[status].toLowerCase()}
+                  </DropdownMenuItem>
+                ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirm(item)}
+              >
+                Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Conferma eliminazione"
+        description={<>Sei sicuro di voler eliminare il preventivo <strong>{deleteConfirm?.number}</strong>? Questa azione non può essere annullata.</>}
+        confirmLabel="Elimina"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );

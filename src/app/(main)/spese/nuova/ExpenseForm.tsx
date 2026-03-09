@@ -2,8 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/hooks/useUnsavedChanges";
+import { toast } from "sonner";
 import { ExpenseFormData, createExpense } from "../actions";
 import type { ExtractionResult } from "@/app/(main)/api/extract/route";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FileDropzone } from "@/components/FileDropzone";
 
 const CATEGORY_LABELS: Record<string, string> = {
   trasporti: "Trasporti",
@@ -25,13 +39,23 @@ export default function ExpenseForm() {
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChanges(isDirty && !saving);
   const [extracting, setExtracting] = useState(false);
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   async function handleFileChange(selectedFile: File | null) {
     setFile(selectedFile);
     if (!selectedFile) return;
+
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error("Il file supera il limite di 10MB");
+      setFile(null);
+      return;
+    }
 
     setExtracting(true);
     setExtractionMessage(null);
@@ -130,142 +154,143 @@ export default function ExpenseForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+    <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="max-w-2xl space-y-6">
       {/* Date and Category */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data *
-          </label>
-          <input
+          <Label htmlFor="date">Data *</Label>
+          <Input
+            id="date"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("date")}`}
+            className={`mt-1 ${fieldHighlight("date")}`}
           />
           {errors.date && (
-            <p className="text-red-600 text-sm mt-1">{errors.date[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.date[0]}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Categoria *
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+          <Label htmlFor="category">Categoria *</Label>
+          <Select
+            value={category || undefined}
+            onValueChange={(value) => setCategory(value)}
           >
-            <option value="">Seleziona categoria</option>
-            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Seleziona categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.category && (
-            <p className="text-red-600 text-sm mt-1">{errors.category[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.category[0]}</p>
           )}
         </div>
       </div>
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Descrizione *
-        </label>
-        <input
+        <Label htmlFor="description">Descrizione *</Label>
+        <Input
+          id="description"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("description")}`}
+          className={`mt-1 ${fieldHighlight("description")}`}
           placeholder="Descrizione della spesa"
         />
         {errors.description && (
-          <p className="text-red-600 text-sm mt-1">{errors.description[0]}</p>
+          <p className="text-sm text-destructive mt-1">{errors.description[0]}</p>
         )}
       </div>
 
       {/* Amount and Tax */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Importo *
-          </label>
-          <input
+          <Label htmlFor="amount">Importo *</Label>
+          <Input
+            id="amount"
             type="number"
             step="0.01"
             min="0"
             value={amount || ""}
             onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("amount")}`}
+            className={`mt-1 ${fieldHighlight("amount")}`}
             placeholder="0.00"
           />
           {errors.amount && (
-            <p className="text-red-600 text-sm mt-1">{errors.amount[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.amount[0]}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Importo IVA
-          </label>
-          <input
+          <Label htmlFor="taxAmount">Importo IVA</Label>
+          <Input
+            id="taxAmount"
             type="number"
             step="0.01"
             min="0"
             value={taxAmount || ""}
             onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("taxAmount")}`}
+            className={`mt-1 ${fieldHighlight("taxAmount")}`}
             placeholder="0.00"
           />
           {errors.taxAmount && (
-            <p className="text-red-600 text-sm mt-1">{errors.taxAmount[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.taxAmount[0]}</p>
           )}
         </div>
       </div>
 
       {/* Deductible flag */}
-      <div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={deductible}
-            onChange={(e) => setDeductible(e.target.checked)}
-            className="rounded"
-          />
-          <span className="text-sm font-medium text-gray-700">
-            Deducibile
-          </span>
-        </label>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="deductible"
+          checked={deductible}
+          onCheckedChange={(checked) => setDeductible(checked === true)}
+        />
+        <Label htmlFor="deductible">Deducibile</Label>
       </div>
 
       {/* File upload with AI extraction */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Allegato (PDF/immagine)
-        </label>
-        <input
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
-          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2"
-          disabled={extracting}
-        />
-        {file && (
-          <p className="text-sm text-gray-500 mt-1">
-            File selezionato: {file.name}
-          </p>
-        )}
-        {extracting && (
-          <p className="text-sm text-blue-600 mt-1 flex items-center gap-2">
-            <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
-            Estrazione dati in corso...
-          </p>
-        )}
+        <Label>Allegato (PDF/immagine)</Label>
+        <div className="mt-1">
+          <FileDropzone
+            accept=".pdf,.jpg,.jpeg,.png"
+            disabled={extracting}
+            onFiles={(files) => handleFileChange(files[0] || null)}
+          >
+            <div className="space-y-1">
+              {extracting ? (
+                <p className="text-sm text-blue-600 flex items-center justify-center gap-2">
+                  <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                  Estrazione dati in corso...
+                </p>
+              ) : file ? (
+                <p className="text-sm text-muted-foreground">
+                  File selezionato: <span className="font-medium">{file.name}</span>
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Trascina un file qui o clicca per selezionare
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    Formati: PDF, JPG, PNG (max 10MB)
+                  </p>
+                </>
+              )}
+            </div>
+          </FileDropzone>
+        </div>
         {extractionMessage && !extracting && (
-          <p className={`text-sm mt-1 ${autoFilledFields.size > 0 ? "text-green-600" : "text-amber-600"}`}>
+          <p className={`text-sm mt-2 ${autoFilledFields.size > 0 ? "text-green-600" : "text-amber-600"}`}>
             {extractionMessage}
           </p>
         )}
@@ -289,20 +314,16 @@ export default function ExpenseForm() {
 
       {/* Submit */}
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-        >
-          {saving ? "Salvataggio..." : "Registra spesa"}
-        </button>
-        <button
+        <Button type="submit" disabled={saving}>
+          {saving ? "Salvataggio..." : "Salva Spesa"}
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push("/spese")}
-          className="border border-gray-300 px-6 py-2 rounded-md hover:bg-gray-50"
         >
           Annulla
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -10,6 +10,16 @@ export interface ViesValidationResult {
   error?: string;
 }
 
+// Escape XML special characters to prevent injection
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 // EU country codes that can be validated via VIES
 const VIES_COUNTRIES = [
   "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
@@ -58,8 +68,8 @@ export async function validateVatVies(
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:ec.europa.eu:taxud:vies:services:checkVat:types">
   <soapenv:Body>
     <urn:checkVat>
-      <urn:countryCode>${viesCountry}</urn:countryCode>
-      <urn:vatNumber>${cleanVat}</urn:vatNumber>
+      <urn:countryCode>${escapeXml(viesCountry)}</urn:countryCode>
+      <urn:vatNumber>${escapeXml(cleanVat)}</urn:vatNumber>
     </urn:checkVat>
   </soapenv:Body>
 </soapenv:Envelope>`;

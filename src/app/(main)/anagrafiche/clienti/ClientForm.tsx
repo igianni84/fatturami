@@ -10,6 +10,20 @@ import {
   type ClientData,
   type ViesStatus,
 } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const EU_COUNTRIES = [
   { code: "AT", name: "Austria" },
@@ -110,7 +124,7 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
     : null;
 
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
@@ -147,55 +161,58 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
         {result?.success === false && !result.errors && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {result.message || "Errore durante il salvataggio"}
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>
+              {result.message || "Errore durante il salvataggio"}
+            </AlertDescription>
+          </Alert>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ragione Sociale *
-          </label>
-          <input
+          <Label htmlFor="name">Ragione Sociale *</Label>
+          <Input
+            id="name"
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1"
           />
           {fieldError("name") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("name")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("name")}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Paese *
-          </label>
-          <select
-            name="country"
-            value={formData.country}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <Label htmlFor="country">Paese *</Label>
+          <Select
+            value={formData.country || undefined}
+            onValueChange={(value) => setFormData({ ...formData, country: value })}
           >
-            <option value="">Seleziona paese...</option>
-            <optgroup label="UE">
-              {EU_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Extra-UE">
-              {EXTRA_EU_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </optgroup>
-          </select>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Seleziona paese..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Paesi UE</SelectLabel>
+                {EU_COUNTRIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Extra-UE</SelectLabel>
+                {EXTRA_EU_COUNTRIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           {fieldError("country") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("country")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("country")}</p>
           )}
           {detectedRegime && (
             <p className="text-sm text-gray-500 mt-1">
@@ -206,19 +223,18 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Partita IVA / VAT Number
-            </label>
-            <input
+            <Label htmlFor="vatNumber">Partita IVA / VAT Number</Label>
+            <Input
+              id="vatNumber"
               type="text"
               name="vatNumber"
               value={formData.vatNumber}
               onChange={handleChange}
               placeholder="Es: IT12345678901"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1"
             />
             {fieldError("vatNumber") && (
-              <p className="text-red-600 text-sm mt-1">{fieldError("vatNumber")}</p>
+              <p className="text-sm text-destructive mt-1">{fieldError("vatNumber")}</p>
             )}
             {viesStatus && formData.vatNumber && EU_COUNTRY_CODES.includes(formData.country.toUpperCase()) && (
               <div className="mt-1">
@@ -255,124 +271,115 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Codice Fiscale
-            </label>
-            <input
+            <Label htmlFor="fiscalCode">Codice Fiscale</Label>
+            <Input
+              id="fiscalCode"
               type="text"
               name="fiscalCode"
               value={formData.fiscalCode}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Indirizzo
-          </label>
-          <input
+          <Label htmlFor="address">Indirizzo</Label>
+          <Input
+            id="address"
             type="text"
             name="address"
             value={formData.address}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Città
-            </label>
-            <input
+            <Label htmlFor="city">Città</Label>
+            <Input
+              id="city"
               type="text"
               name="city"
               value={formData.city}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              CAP
-            </label>
-            <input
+            <Label htmlFor="postalCode">CAP</Label>
+            <Input
+              id="postalCode"
               type="text"
               name="postalCode"
               value={formData.postalCode}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1"
           />
           {fieldError("email") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("email")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("email")}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Valuta Preferita *
-          </label>
-          <select
-            name="currency"
+          <Label htmlFor="currency">Valuta Preferita *</Label>
+          <Select
             value={formData.currency}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onValueChange={(value) => setFormData({ ...formData, currency: value })}
           >
-            <option value="EUR">EUR - Euro</option>
-            <option value="GBP">GBP - Sterlina britannica</option>
-            <option value="USD">USD - Dollaro americano</option>
-            <option value="CHF">CHF - Franco svizzero</option>
-          </select>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Seleziona valuta..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="EUR">EUR - Euro</SelectItem>
+              <SelectItem value="GBP">GBP - Sterlina britannica</SelectItem>
+              <SelectItem value="USD">USD - Dollaro americano</SelectItem>
+              <SelectItem value="CHF">CHF - Franco svizzero</SelectItem>
+            </SelectContent>
+          </Select>
           {fieldError("currency") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("currency")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("currency")}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Note
-          </label>
-          <textarea
+          <Label htmlFor="notes">Note</Label>
+          <Textarea
+            id="notes"
             name="notes"
             value={formData.notes}
             onChange={handleChange}
             rows={3}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1"
           />
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {saving ? "Salvataggio..." : isEdit ? "Aggiorna" : "Crea Cliente"}
-          </button>
-          <button
+          <Button type="submit" disabled={saving}>
+            {saving ? "Salvataggio..." : "Salva Cliente"}
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => router.push("/anagrafiche/clienti")}
-            className="border border-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-50"
           >
             Annulla
-          </button>
+          </Button>
         </div>
       </form>
     </div>

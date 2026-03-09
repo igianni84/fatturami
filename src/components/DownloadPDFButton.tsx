@@ -1,6 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Download, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 
 interface DownloadPDFButtonProps {
   documentId: string;
@@ -8,22 +17,27 @@ interface DownloadPDFButtonProps {
   defaultFilename?: string;
 }
 
+const languages = [
+  { code: "ES", label: "Spagnolo" },
+  { code: "IT", label: "Italiano" },
+  { code: "EN", label: "Inglese" },
+];
+
 export function DownloadPDFButton({
   documentId,
   documentType,
   defaultFilename = "document.pdf",
 }: DownloadPDFButtonProps) {
-  const [language, setLanguage] = useState("ES");
   const [downloading, setDownloading] = useState(false);
 
-  async function handleDownload() {
+  async function handleDownload(language: string) {
     setDownloading(true);
     try {
       const res = await fetch(
         `/api/pdf/${documentType}?id=${documentId}&lang=${language}`
       );
       if (!res.ok) {
-        alert("Errore nella generazione del PDF");
+        toast.error("Errore nella generazione del PDF");
         return;
       }
       const blob = await res.blob();
@@ -43,23 +57,24 @@ export function DownloadPDFButton({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <select
-        value={language}
-        onChange={(e) => setLanguage(e.target.value)}
-        className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white"
-      >
-        <option value="ES">ES</option>
-        <option value="IT">IT</option>
-        <option value="EN">EN</option>
-      </select>
-      <button
-        onClick={handleDownload}
-        disabled={downloading}
-        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium disabled:opacity-50"
-      >
-        {downloading ? "Generando..." : "Scarica PDF"}
-      </button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" disabled={downloading} className="gap-2">
+          <Download className="size-4" />
+          {downloading ? "Generando..." : "Scarica PDF"}
+          <ChevronDown className="size-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {languages.map((lang) => (
+          <DropdownMenuItem
+            key={lang.code}
+            onClick={() => handleDownload(lang.code)}
+          >
+            {lang.code} — {lang.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

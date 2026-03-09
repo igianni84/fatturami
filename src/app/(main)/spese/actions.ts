@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ExpenseCategory } from "@prisma/client";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { validateFileType } from "@/lib/file-validation";
 
 // --- Types ---
 
@@ -31,7 +33,16 @@ export type ExpenseFormData = z.infer<typeof expenseSchema>;
 
 // --- Upload file ---
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 async function uploadFile(file: File): Promise<string> {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("File troppo grande. Massimo 10MB consentiti.");
+  }
+  const fileValidation = await validateFileType(file);
+  if (!fileValidation.valid) {
+    throw new Error(fileValidation.error);
+  }
   const uploadsDir = join(process.cwd(), "uploads", "spese");
   await mkdir(uploadsDir, { recursive: true });
 
@@ -131,12 +142,40 @@ export async function getExpenses(params: {
   };
 }
 
+// --- Delete expense ---
+
+export async function deleteExpense(
+  id: string
+): Promise<ExpenseActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
+  const expense = await prisma.expense.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!expense) {
+    return { success: false, message: "Spesa non trovata" };
+  }
+
+  await prisma.expense.delete({ where: { id } });
+  return { success: true, message: "Spesa eliminata" };
+}
+
 // --- Create expense ---
 
 export async function createExpense(
   data: ExpenseFormData,
   file?: File | null
 ): Promise<ExpenseActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = expenseSchema.safeParse(data);
 
   if (!result.success) {

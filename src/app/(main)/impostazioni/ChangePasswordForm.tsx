@@ -6,6 +6,10 @@ import {
   type ChangePasswordFormData,
   type ChangePasswordResult,
 } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const emptyForm: ChangePasswordFormData = {
   currentPassword: "",
@@ -41,78 +45,78 @@ export default function ChangePasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {result?.success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-          {result.message}
-        </div>
+        <Alert>
+          <AlertDescription>{result.message}</AlertDescription>
+        </Alert>
       )}
       {result && !result.success && result.message && !result.errors && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {result.message}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{result.message}</AlertDescription>
+        </Alert>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Password attuale *
-        </label>
-        <input
+        <Label htmlFor="currentPassword">Password attuale *</Label>
+        <Input
+          id="currentPassword"
           type="password"
           name="currentPassword"
           value={formData.currentPassword}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("currentPassword") && (
-          <p className="text-red-600 text-sm mt-1">
+          <p className="text-sm text-destructive mt-1">
             {fieldError("currentPassword")}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nuova password *
-        </label>
-        <input
+        <Label htmlFor="newPassword">Nuova password *</Label>
+        <Input
+          id="newPassword"
           type="password"
           name="newPassword"
           value={formData.newPassword}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
+        <ul className="text-xs text-muted-foreground mt-1 space-y-0.5 list-disc list-inside">
+          <li>Almeno 12 caratteri</li>
+          <li>Almeno una lettera maiuscola</li>
+          <li>Almeno una lettera minuscola</li>
+          <li>Almeno un numero</li>
+          <li>Almeno un carattere speciale</li>
+        </ul>
         {fieldError("newPassword") && (
-          <p className="text-red-600 text-sm mt-1">
+          <p className="text-sm text-destructive mt-1">
             {fieldError("newPassword")}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Conferma nuova password *
-        </label>
-        <input
+        <Label htmlFor="confirmPassword">Conferma nuova password *</Label>
+        <Input
+          id="confirmPassword"
           type="password"
           name="confirmPassword"
           value={formData.confirmPassword}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("confirmPassword") && (
-          <p className="text-red-600 text-sm mt-1">
+          <p className="text-sm text-destructive mt-1">
             {fieldError("confirmPassword")}
           </p>
         )}
       </div>
 
       <div className="pt-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        >
-          {saving ? "Aggiornamento..." : "Cambia Password"}
-        </button>
+        <Button type="submit" disabled={saving}>
+          {saving ? "Salvataggio..." : "Cambia Password"}
+        </Button>
       </div>
     </form>
   );

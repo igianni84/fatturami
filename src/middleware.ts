@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, errors } from "jose";
+
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable must be set in production");
+}
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "default-secret-change-in-production"
@@ -34,8 +38,21 @@ export async function middleware(request: NextRequest) {
   try {
     await jwtVerify(token, JWT_SECRET);
     return NextResponse.next();
-  } catch {
-    // Invalid token - redirect to login
+  } catch (error) {
+    const path = request.nextUrl.pathname;
+
+    if (error instanceof errors.JWTExpired) {
+      console.error(`[AUTH] JWT expired for path ${path}`);
+    } else if (error instanceof errors.JWTClaimValidationFailed) {
+      console.error(`[AUTH] JWT claim validation failed for path ${path}: ${error.message}`);
+    } else if (error instanceof errors.JWTInvalid) {
+      console.error(`[AUTH] JWT invalid for path ${path}: ${error.message}`);
+    } else if (error instanceof errors.JWSSignatureVerificationFailed) {
+      console.error(`[AUTH] JWT signature verification failed for path ${path}`);
+    } else {
+      console.error(`[AUTH] JWT verification error for path ${path}:`, error);
+    }
+
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("auth-token");
     return response;

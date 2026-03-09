@@ -50,6 +50,7 @@ export interface PDFInvoiceData {
   disclaimer?: string;
   notes?: string;
   referenceInvoice?: string;
+  paidAt?: string;
   company: PDFCompanyData;
   client: PDFClientData;
   lines: PDFLineItem[];
@@ -324,6 +325,9 @@ export function InvoicePDF({
     creditNote: t.creditNote,
   };
 
+  const isInternational =
+    data.client.country.toUpperCase() !== data.company.country.toUpperCase();
+
   const subtotal = data.lines.reduce(
     (sum, line) => sum + line.quantity * line.unitPrice,
     0
@@ -354,7 +358,7 @@ export function InvoicePDF({
             <Text style={styles.partyLabel}>{t.from}</Text>
             <Text style={styles.partyName}>{data.company.name}</Text>
             <Text style={styles.partyDetail}>
-              {t.nif}: {data.company.nif}
+              {t.nif}: {isInternational ? `${data.company.country}${data.company.nif}` : data.company.nif}
             </Text>
             <Text style={styles.partyDetail}>{data.company.address}</Text>
             <Text style={styles.partyDetail}>
@@ -397,6 +401,12 @@ export function InvoicePDF({
             <View style={styles.metaItem}>
               <Text style={styles.metaLabel}>{t.dueDate}</Text>
               <Text style={styles.metaValue}>{data.dueDate}</Text>
+            </View>
+          )}
+          {data.paidAt && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>{t.paidAt}</Text>
+              <Text style={styles.metaValue}>{data.paidAt}</Text>
             </View>
           )}
           {data.expiryDate && (
@@ -506,7 +516,7 @@ export function InvoicePDF({
 
         {/* Footer */}
         <Text style={styles.footer}>
-          {data.company.name} - {t.nif}: {data.company.nif} - {data.company.email}
+          {data.company.name} - {t.nif}: {isInternational ? `${data.company.country}${data.company.nif}` : data.company.nif} - {data.company.email}
         </Text>
       </Page>
     </Document>

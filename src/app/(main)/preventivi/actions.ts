@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -158,9 +159,40 @@ export async function updateQuoteStatus(
   quoteId: string,
   newStatus: string
 ): Promise<QuoteActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const validStatuses = ["bozza", "inviato", "accettato", "rifiutato", "scaduto"];
   if (!validStatuses.includes(newStatus)) {
     return { success: false, message: "Stato non valido" };
+  }
+
+  // Validate state transitions server-side
+  const statusTransitions: Record<string, string[]> = {
+    bozza: ["inviato"],
+    inviato: ["accettato", "rifiutato", "scaduto"],
+    accettato: [],
+    rifiutato: [],
+    scaduto: [],
+  };
+
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    select: { status: true },
+  });
+
+  if (!quote) {
+    return { success: false, message: "Preventivo non trovato" };
+  }
+
+  const allowedTransitions = statusTransitions[quote.status] || [];
+  if (!allowedTransitions.includes(newStatus)) {
+    return {
+      success: false,
+      message: `Transizione non consentita: ${quote.status} → ${newStatus}`,
+    };
   }
 
   await prisma.quote.update({
@@ -171,11 +203,39 @@ export async function updateQuoteStatus(
   return { success: true, message: "Stato aggiornato" };
 }
 
+// --- Delete quote ---
+
+export async function deleteQuote(
+  quoteId: string
+): Promise<QuoteActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    select: { id: true },
+  });
+
+  if (!quote) {
+    return { success: false, message: "Preventivo non trovato" };
+  }
+
+  await prisma.quote.delete({ where: { id: quoteId } });
+  return { success: true, message: "Preventivo eliminato" };
+}
+
 // --- Create quote ---
 
 export async function createQuote(
   data: QuoteFormData
 ): Promise<QuoteActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = quoteSchema.safeParse(data);
   if (!result.success) {
     const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>;
@@ -190,6 +250,15 @@ export async function createQuote(
   }
 
   const { clientId, date, expiryDate, notes, lines } = result.data;
+
+  // Validate client exists and is not soft-deleted
+  const client = await prisma.client.findUnique({
+    where: { id: clientId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!client) {
+    return { success: false, errors: { clientId: ["Cliente non trovato o non più attivo"] } };
+  }
 
   const number = await generateQuoteNumber();
 

@@ -6,6 +6,17 @@ import {
   type CompanyFormData,
   type CompanyActionResult,
 } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const emptyForm: CompanyFormData = {
   name: "",
@@ -31,9 +42,7 @@ export default function CompanyForm({
   const [result, setResult] = useState<CompanyActionResult | null>(null);
   const [saving, setSaving] = useState(false);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
@@ -53,90 +62,85 @@ export default function CompanyForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {result?.success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-          {result.message}
-        </div>
+        <Alert>
+          <AlertDescription>{result.message}</AlertDescription>
+        </Alert>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nome / Ragione Sociale *
-        </label>
-        <input
+        <Label htmlFor="name">Nome / Ragione Sociale *</Label>
+        <Input
+          id="name"
           type="text"
           name="name"
           value={formData.name}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("name") && (
-          <p className="text-red-600 text-sm mt-1">{fieldError("name")}</p>
+          <p className="text-sm text-destructive mt-1">{fieldError("name")}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          NIF/CIF *
-        </label>
-        <input
+        <Label htmlFor="nif">NIF/CIF *</Label>
+        <Input
+          id="nif"
           type="text"
           name="nif"
           value={formData.nif}
           onChange={handleChange}
           placeholder="Es: 12345678A o B1234567A"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("nif") && (
-          <p className="text-red-600 text-sm mt-1">{fieldError("nif")}</p>
+          <p className="text-sm text-destructive mt-1">{fieldError("nif")}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Indirizzo *
-        </label>
-        <input
+        <Label htmlFor="address">Indirizzo *</Label>
+        <Input
+          id="address"
           type="text"
           name="address"
           value={formData.address}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("address") && (
-          <p className="text-red-600 text-sm mt-1">{fieldError("address")}</p>
+          <p className="text-sm text-destructive mt-1">{fieldError("address")}</p>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Città *
-          </label>
-          <input
+          <Label htmlFor="city">Città *</Label>
+          <Input
+            id="city"
             type="text"
             name="city"
             value={formData.city}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1"
           />
           {fieldError("city") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("city")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("city")}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            CAP *
-          </label>
-          <input
+          <Label htmlFor="postalCode">CAP *</Label>
+          <Input
+            id="postalCode"
             type="text"
             name="postalCode"
             value={formData.postalCode}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1"
           />
           {fieldError("postalCode") && (
-            <p className="text-red-600 text-sm mt-1">
+            <p className="text-sm text-destructive mt-1">
               {fieldError("postalCode")}
             </p>
           )}
@@ -144,88 +148,80 @@ export default function CompanyForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Paese *
-        </label>
-        <input
+        <Label htmlFor="country">Paese *</Label>
+        <Input
+          id="country"
           type="text"
           name="country"
           value={formData.country}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("country") && (
-          <p className="text-red-600 text-sm mt-1">{fieldError("country")}</p>
+          <p className="text-sm text-destructive mt-1">{fieldError("country")}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email
-        </label>
-        <input
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
           type="email"
           name="email"
           value={formData.email}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
         {fieldError("email") && (
-          <p className="text-red-600 text-sm mt-1">{fieldError("email")}</p>
+          <p className="text-sm text-destructive mt-1">{fieldError("email")}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Telefono
-        </label>
-        <input
+        <Label htmlFor="phone">Telefono</Label>
+        <Input
+          id="phone"
           type="text"
           name="phone"
           value={formData.phone}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          IBAN
-        </label>
-        <input
+        <Label htmlFor="iban">IBAN</Label>
+        <Input
+          id="iban"
           type="text"
           name="iban"
           value={formData.iban}
           onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Regime Fiscale
-        </label>
-        <select
-          name="taxRegime"
-          value={formData.taxRegime}
-          onChange={handleChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <Label>Regime Fiscale</Label>
+        <Select
+          value={formData.taxRegime || undefined}
+          onValueChange={(value) => setFormData((prev) => ({ ...prev, taxRegime: value }))}
         >
-          <option value="">Seleziona...</option>
-          <option value="autonomo">Autónomo</option>
-          <option value="sociedad">Sociedad</option>
-          <option value="cooperativa">Cooperativa</option>
-        </select>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Seleziona..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="autonomo">Autónomo</SelectItem>
+            <SelectItem value="sociedad">Sociedad</SelectItem>
+            <SelectItem value="cooperativa">Cooperativa</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="pt-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        >
-          {saving ? "Salvataggio..." : "Salva"}
-        </button>
+        <Button type="submit" disabled={saving}>
+          {saving ? "Salvataggio..." : "Salva Impostazioni"}
+        </Button>
       </div>
     </form>
   );

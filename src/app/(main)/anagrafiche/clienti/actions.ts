@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { VatRegime } from "@prisma/client";
 import { validateVatVies, isViesEligible } from "@/lib/vies";
@@ -156,6 +157,11 @@ export async function getClient(id: string): Promise<ClientData | null> {
 export async function createClient(
   data: ClientFormData
 ): Promise<ClientActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = clientSchema.safeParse(data);
   if (!result.success) {
     return {
@@ -220,6 +226,11 @@ export async function createClient(
 // --- Delete client (soft delete) ---
 
 export async function deleteClient(id: string): Promise<ClientActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   await prisma.client.update({
     where: { id },
     data: { deletedAt: new Date() },
@@ -234,6 +245,11 @@ export async function updateClient(
   id: string,
   data: ClientFormData
 ): Promise<ClientActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = clientSchema.safeParse(data);
   if (!result.success) {
     return {

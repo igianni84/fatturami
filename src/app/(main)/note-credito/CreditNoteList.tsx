@@ -1,9 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
-import { CreditNoteListItem } from "./actions";
+import { CreditNoteListItem, deleteCreditNote } from "./actions";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 
 interface CreditNoteListProps {
   creditNotes: CreditNoteListItem[];
@@ -26,6 +37,7 @@ export default function CreditNoteList({
 }: CreditNoteListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [deleteConfirm, setDeleteConfirm] = useState<CreditNoteListItem | null>(null);
 
   const navigateTo = (params: { page?: number }) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -33,6 +45,16 @@ export default function CreditNoteList({
       sp.set("page", String(params.page));
     }
     router.push(`/note-credito?${sp.toString()}`);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    const result = await deleteCreditNote(deleteConfirm.id);
+    setDeleteConfirm(null);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'eliminazione");
+    }
+    router.refresh();
   };
 
   const columns: Column<CreditNoteListItem>[] = [
@@ -44,6 +66,7 @@ export default function CreditNoteList({
         <Link
           href={`/fatture/${item.invoiceId}`}
           className="text-blue-600 hover:underline"
+          onClick={(e) => e.stopPropagation()}
         >
           {item.invoiceNumber}
         </Link>
@@ -70,15 +93,36 @@ export default function CreditNoteList({
         totalCount={totalCount}
         page={page}
         pageSize={10}
+        emptyMessage="Nessuna nota di credito trovata"
         onPageChange={(newPage) => navigateTo({ page: newPage })}
+        onRowClick={(item) => router.push(`/note-credito/${item.id}`)}
         actions={(item) => (
-          <Link
-            href={`/note-credito/${item.id}`}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            Dettaglio
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Azioni nota di credito">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirm(item)}
+              >
+                Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Conferma eliminazione"
+        description={<>Sei sicuro di voler eliminare la nota di credito <strong>{deleteConfirm?.number}</strong>? Questa azione non può essere annullata.</>}
+        confirmLabel="Elimina"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );

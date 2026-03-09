@@ -1,8 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import type { ExtractionResult } from "@/app/(main)/api/extract/route";
 import { importPDFBatch, type ReviewItem, type ReviewLineItem, type ImportPDFResult } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FileDropzone } from "@/components/FileDropzone";
 
 type Step = "upload" | "processing" | "review" | "importing" | "result";
 
@@ -33,28 +48,17 @@ export default function PDFBatchImporter() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<ImportPDFResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-
-    const validFiles: File[] = [];
+  const handleFilesSelected = (selectedFiles: File[]) => {
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"];
-
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      if (allowedTypes.includes(file.type)) {
-        validFiles.push(file);
-      }
-    }
+    const validFiles = selectedFiles.filter((f) => allowedTypes.includes(f.type));
 
     if (validFiles.length === 0) {
       setError("Nessun file valido selezionato. Formati supportati: PDF, JPG, PNG, WebP, GIF.");
       return;
     }
 
-    setFiles(validFiles);
+    setFiles((prev) => [...prev, ...validFiles]);
     setError(null);
   };
 
@@ -211,9 +215,6 @@ export default function PDFBatchImporter() {
     setEditingIndex(null);
     setImportResult(null);
     setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const processedCount = processingStatuses.filter((s) => s.status === "done" || s.status === "error").length;
@@ -223,33 +224,28 @@ export default function PDFBatchImporter() {
     <div className="space-y-6">
       {/* Error Display */}
       {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Step 1: Upload */}
       {step === "upload" && (
         <div className="space-y-4">
-          <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-            <div className="text-gray-500 mb-4">
-              <p className="text-lg font-medium">Carica file PDF o immagini</p>
-              <p className="text-sm mt-1">
-                Seleziona più file per l&apos;elaborazione batch con AI
+          <FileDropzone
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.gif"
+            multiple
+            onFiles={handleFilesSelected}
+          >
+            <div className="space-y-2">
+              <p className="text-lg font-medium text-muted-foreground">
+                Trascina i file qui o clicca per selezionare
+              </p>
+              <p className="text-sm text-muted-foreground/70">
+                PDF, JPG, PNG, WebP, GIF — elaborazione batch con AI
               </p>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.webp,.gif"
-              multiple
-              onChange={handleFileSelect}
-              className="mx-auto block text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-            />
-            <p className="mt-4 text-xs text-gray-400">
-              Formati supportati: PDF, JPG, PNG, WebP, GIF. I file vengono elaborati sequenzialmente.
-            </p>
-          </div>
+          </FileDropzone>
 
           {/* Selected files list */}
           {files.length > 0 && (
@@ -257,32 +253,33 @@ export default function PDFBatchImporter() {
               <h3 className="text-sm font-medium text-gray-700">
                 File selezionati ({files.length})
               </h3>
-              <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
-                {files.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between px-4 py-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400 w-6">{idx + 1}.</span>
-                      <span className="text-sm text-gray-700">{file.name}</span>
-                      <span className="text-xs text-gray-400">
-                        ({(file.size / 1024).toFixed(1)} KB)
-                      </span>
+              <Card>
+                <CardContent className="p-0 divide-y">
+                  {files.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between px-4 py-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-400 w-6">{idx + 1}.</span>
+                        <span className="text-sm text-gray-700">{file.name}</span>
+                        <span className="text-xs text-gray-400">
+                          ({(file.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveFile(idx)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        Rimuovi
+                      </Button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveFile(idx)}
-                      className="text-red-500 hover:text-red-700 text-sm"
-                    >
-                      Rimuovi
-                    </button>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </CardContent>
+              </Card>
 
-              <button
-                onClick={handleStartProcessing}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
+              <Button onClick={handleStartProcessing}>
                 Avvia Elaborazione AI
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -308,19 +305,21 @@ export default function PDFBatchImporter() {
           </div>
 
           {/* File statuses */}
-          <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
-            {processingStatuses.map((status, idx) => (
-              <div key={idx} className="flex items-center justify-between px-4 py-2">
-                <div className="flex items-center gap-3">
-                  <StatusIcon status={status.status} />
-                  <span className="text-sm text-gray-700">{status.fileName}</span>
+          <Card>
+            <CardContent className="p-0 divide-y">
+              {processingStatuses.map((status, idx) => (
+                <div key={idx} className="flex items-center justify-between px-4 py-2">
+                  <div className="flex items-center gap-3">
+                    <StatusIcon status={status.status} />
+                    <span className="text-sm text-gray-700">{status.fileName}</span>
+                  </div>
+                  {status.error && (
+                    <span className="text-xs text-red-600">{status.error}</span>
+                  )}
                 </div>
-                {status.error && (
-                  <span className="text-xs text-red-600">{status.error}</span>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -342,204 +341,209 @@ export default function PDFBatchImporter() {
 
           {/* Processing errors summary */}
           {processingStatuses.some((s) => s.status === "error") && (
-            <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-700">
-              <p className="font-medium">Alcuni file non sono stati elaborati:</p>
-              <ul className="mt-1 list-disc pl-5">
-                {processingStatuses
-                  .filter((s) => s.status === "error")
-                  .map((s, idx) => (
-                    <li key={idx}>{s.fileName}: {s.error}</li>
-                  ))}
-              </ul>
-            </div>
+            <Alert className="border-yellow-300 bg-yellow-50">
+              <AlertDescription className="text-yellow-700">
+                <p className="font-medium">Alcuni file non sono stati elaborati:</p>
+                <ul className="mt-1 list-disc pl-5">
+                  {processingStatuses
+                    .filter((s) => s.status === "error")
+                    .map((s, idx) => (
+                      <li key={idx}>{s.fileName}: {s.error}</li>
+                    ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Review items list */}
           <div className="space-y-3">
             {reviewItems.map((item, idx) => (
-              <div key={idx} className="rounded-lg border border-gray-200 overflow-hidden">
-                {/* Item header */}
-                <div
-                  className="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                  onClick={() => setEditingIndex(editingIndex === idx ? null : idx)}
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-400 font-mono">{idx + 1}</span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.matchedSupplierName || item.supplierName || "Fornitore sconosciuto"}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {item.fileName} · {item.invoiceNumber || "N. non rilevato"} · {item.date || "Data non rilevata"}
-                      </p>
+              <Card key={idx} className="overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Item header */}
+                  <div
+                    className="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                    onClick={() => setEditingIndex(editingIndex === idx ? null : idx)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-gray-400 font-mono">{idx + 1}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {item.matchedSupplierName || item.supplierName || "Fornitore sconosciuto"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {item.fileName} · {item.invoiceNumber || "N. non rilevato"} · {item.date || "Data non rilevata"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        {item.total ? `€ ${item.total.toFixed(2)}` : "-"}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveReviewItem(idx);
+                        }}
+                        className="text-red-500 hover:text-red-700 text-xs"
+                      >
+                        Rimuovi
+                      </Button>
+                      <span className="text-gray-400">{editingIndex === idx ? "▲" : "▼"}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.total ? `€ ${item.total.toFixed(2)}` : "-"}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveReviewItem(idx);
-                      }}
-                      className="text-red-500 hover:text-red-700 text-xs"
-                    >
-                      Rimuovi
-                    </button>
-                    <span className="text-gray-400">{editingIndex === idx ? "▲" : "▼"}</span>
-                  </div>
-                </div>
 
-                {/* Expanded edit form */}
-                {editingIndex === idx && (
-                  <div className="p-4 space-y-4 border-t border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Expanded edit form */}
+                  {editingIndex === idx && (
+                    <div className="p-4 space-y-4 border-t">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs mb-1">Fornitore</Label>
+                          <Input
+                            type="text"
+                            value={item.matchedSupplierName || item.supplierName}
+                            onChange={(e) => {
+                              handleUpdateReviewItem(idx, "supplierName", e.target.value);
+                              handleUpdateReviewItem(idx, "matchedSupplierId", "");
+                              handleUpdateReviewItem(idx, "matchedSupplierName", "");
+                            }}
+                          />
+                          {item.matchedSupplierId && (
+                            <p className="mt-1 text-xs text-green-600">Fornitore esistente riconosciuto</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1">P.IVA/VAT</Label>
+                          <Input
+                            type="text"
+                            value={item.supplierVatNumber}
+                            onChange={(e) => handleUpdateReviewItem(idx, "supplierVatNumber", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1">Numero Fattura</Label>
+                          <Input
+                            type="text"
+                            value={item.invoiceNumber}
+                            onChange={(e) => handleUpdateReviewItem(idx, "invoiceNumber", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1">Data</Label>
+                          <Input
+                            type="date"
+                            value={item.date}
+                            onChange={(e) => handleUpdateReviewItem(idx, "date", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs mb-1">Categoria</Label>
+                          <Select
+                            value={item.category}
+                            onValueChange={(value) => handleUpdateReviewItem(idx, "category", value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Seleziona categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
+                                <SelectItem key={val} value={val}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Line items */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Fornitore</label>
-                        <input
-                          type="text"
-                          value={item.matchedSupplierName || item.supplierName}
-                          onChange={(e) => {
-                            handleUpdateReviewItem(idx, "supplierName", e.target.value);
-                            handleUpdateReviewItem(idx, "matchedSupplierId", "");
-                            handleUpdateReviewItem(idx, "matchedSupplierName", "");
-                          }}
-                          className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                        {item.matchedSupplierId && (
-                          <p className="mt-1 text-xs text-green-600">Fornitore esistente riconosciuto</p>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-xs">Righe</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddLine(idx)}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            + Aggiungi riga
+                          </Button>
+                        </div>
+                        {item.lines.length === 0 ? (
+                          <p className="text-xs text-gray-400 italic">Nessuna riga estratta. Verrà creata una riga dal totale.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {item.lines.map((line, li) => (
+                              <div key={li} className="flex items-center gap-2">
+                                <Input
+                                  type="text"
+                                  value={line.description}
+                                  onChange={(e) => handleUpdateLine(idx, li, "description", e.target.value)}
+                                  placeholder="Descrizione"
+                                  className="flex-1 text-xs"
+                                />
+                                <Input
+                                  type="number"
+                                  value={line.amount}
+                                  onChange={(e) => handleUpdateLine(idx, li, "amount", parseFloat(e.target.value) || 0)}
+                                  placeholder="Importo"
+                                  step="0.01"
+                                  className="w-24 text-xs"
+                                />
+                                <Input
+                                  type="number"
+                                  value={line.taxRate}
+                                  onChange={(e) => handleUpdateLine(idx, li, "taxRate", parseFloat(e.target.value) || 0)}
+                                  placeholder="IVA %"
+                                  step="0.5"
+                                  className="w-16 text-xs"
+                                />
+                                <div className="flex items-center gap-1 whitespace-nowrap">
+                                  <Checkbox
+                                    checked={line.deductible}
+                                    onCheckedChange={(checked) => handleUpdateLine(idx, li, "deductible", !!checked)}
+                                  />
+                                  <Label className="text-xs text-gray-600">Ded.</Label>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveLine(idx, li)}
+                                  className="text-red-400 hover:text-red-600 text-xs px-1"
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">P.IVA/VAT</label>
-                        <input
-                          type="text"
-                          value={item.supplierVatNumber}
-                          onChange={(e) => handleUpdateReviewItem(idx, "supplierVatNumber", e.target.value)}
-                          className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Numero Fattura</label>
-                        <input
-                          type="text"
-                          value={item.invoiceNumber}
-                          onChange={(e) => handleUpdateReviewItem(idx, "invoiceNumber", e.target.value)}
-                          className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Data</label>
-                        <input
-                          type="date"
-                          value={item.date}
-                          onChange={(e) => handleUpdateReviewItem(idx, "date", e.target.value)}
-                          className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Categoria</label>
-                        <select
-                          value={item.category}
-                          onChange={(e) => handleUpdateReviewItem(idx, "category", e.target.value)}
-                          className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
-                            <option key={val} value={val}>{label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
 
-                    {/* Line items */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-medium text-gray-600">Righe</label>
-                        <button
-                          onClick={() => handleAddLine(idx)}
-                          className="text-xs text-blue-600 hover:text-blue-800"
-                        >
-                          + Aggiungi riga
-                        </button>
+                      {/* Totals */}
+                      <div className="flex gap-4 text-xs text-gray-500 pt-2 border-t">
+                        <span>Imponibile: € {item.subtotal.toFixed(2)}</span>
+                        <span>IVA: € {item.taxAmount.toFixed(2)}</span>
+                        <span className="font-medium text-gray-700">Totale: € {item.total.toFixed(2)}</span>
                       </div>
-                      {item.lines.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">Nessuna riga estratta. Verrà creata una riga dal totale.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {item.lines.map((line, li) => (
-                            <div key={li} className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={line.description}
-                                onChange={(e) => handleUpdateLine(idx, li, "description", e.target.value)}
-                                placeholder="Descrizione"
-                                className="flex-1 rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                              />
-                              <input
-                                type="number"
-                                value={line.amount}
-                                onChange={(e) => handleUpdateLine(idx, li, "amount", parseFloat(e.target.value) || 0)}
-                                placeholder="Importo"
-                                step="0.01"
-                                className="w-24 rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                              />
-                              <input
-                                type="number"
-                                value={line.taxRate}
-                                onChange={(e) => handleUpdateLine(idx, li, "taxRate", parseFloat(e.target.value) || 0)}
-                                placeholder="IVA %"
-                                step="0.5"
-                                className="w-16 rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                              />
-                              <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
-                                <input
-                                  type="checkbox"
-                                  checked={line.deductible}
-                                  onChange={(e) => handleUpdateLine(idx, li, "deductible", e.target.checked)}
-                                  className="rounded border-gray-300"
-                                />
-                                Ded.
-                              </label>
-                              <button
-                                onClick={() => handleRemoveLine(idx, li)}
-                                className="text-red-400 hover:text-red-600 text-xs"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-
-                    {/* Totals */}
-                    <div className="flex gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
-                      <span>Imponibile: € {item.subtotal.toFixed(2)}</span>
-                      <span>IVA: € {item.taxAmount.toFixed(2)}</span>
-                      <span className="font-medium text-gray-700">Totale: € {item.total.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
 
           {/* Action buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={handleReset}
-              className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
+            <Button variant="outline" onClick={handleReset}>
               Annulla
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleConfirmImport}
               disabled={reviewItems.length === 0}
-              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-green-600 hover:bg-green-700"
             >
               Conferma Importazione ({reviewItems.length} documenti)
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -555,69 +559,77 @@ export default function PDFBatchImporter() {
       {/* Step 5: Result */}
       {step === "result" && importResult && (
         <div className="space-y-4">
-          <div
-            className={`rounded-md p-4 ${
-              importResult.success && importResult.errors.length === 0
-                ? "bg-green-50 border border-green-200"
-                : importResult.success
-                  ? "bg-yellow-50 border border-yellow-200"
-                  : "bg-red-50 border border-red-200"
-            }`}
-          >
-            <h3
-              className={`text-lg font-medium ${
-                importResult.success && importResult.errors.length === 0
-                  ? "text-green-800"
-                  : importResult.success
-                    ? "text-yellow-800"
-                    : "text-red-800"
-              }`}
-            >
-              {importResult.success
-                ? importResult.errors.length === 0
-                  ? "Importazione completata"
-                  : "Importazione completata con avvisi"
-                : "Importazione fallita"}
-            </h3>
-            <div className="mt-2 text-sm">
-              <p>
-                Fatture acquisto importate: <strong>{importResult.importedCount}</strong>
-              </p>
-              {importResult.createdSuppliers > 0 && (
-                <p>
-                  Fornitori creati: <strong>{importResult.createdSuppliers}</strong>
-                </p>
-              )}
-            </div>
-          </div>
+          {importResult.success && importResult.errors.length === 0 ? (
+            <Alert>
+              <AlertDescription>
+                <h3 className="text-lg font-medium">Importazione completata</h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    Fatture acquisto importate: <strong>{importResult.importedCount}</strong>
+                  </p>
+                  {importResult.createdSuppliers > 0 && (
+                    <p>
+                      Fornitori creati: <strong>{importResult.createdSuppliers}</strong>
+                    </p>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : importResult.success ? (
+            <Alert className="border-yellow-300 bg-yellow-50">
+              <AlertDescription className="text-yellow-700">
+                <h3 className="text-lg font-medium">Importazione completata con avvisi</h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    Fatture acquisto importate: <strong>{importResult.importedCount}</strong>
+                  </p>
+                  {importResult.createdSuppliers > 0 && (
+                    <p>
+                      Fornitori creati: <strong>{importResult.createdSuppliers}</strong>
+                    </p>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <h3 className="text-lg font-medium">Importazione fallita</h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    Fatture acquisto importate: <strong>{importResult.importedCount}</strong>
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Errors */}
           {importResult.errors.length > 0 && (
-            <div className="rounded-lg border border-gray-200">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                <h4 className="text-sm font-medium text-gray-700">
-                  {importResult.success ? "Avvisi" : "Errori"} ({importResult.errors.length})
-                </h4>
-              </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-                {importResult.errors.map((err, idx) => (
-                  <div key={idx} className="flex items-center gap-3 px-4 py-2 text-sm">
-                    <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                      {err.fileName}
-                    </span>
-                    <span className="text-gray-700">{err.message}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-0">
+                <div className="bg-gray-50 px-4 py-2 border-b">
+                  <h4 className="text-sm font-medium text-gray-700">
+                    {importResult.success ? "Avvisi" : "Errori"} ({importResult.errors.length})
+                  </h4>
+                </div>
+                <div className="max-h-64 overflow-y-auto divide-y">
+                  {importResult.errors.map((err, idx) => (
+                    <div key={idx} className="flex items-center gap-3 px-4 py-2 text-sm">
+                      <Badge variant="destructive">
+                        {err.fileName}
+                      </Badge>
+                      <span className="text-gray-700">{err.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          <button
-            onClick={handleReset}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          <Button onClick={handleReset}>
             Nuova Importazione
-          </button>
+          </Button>
         </div>
       )}
     </div>

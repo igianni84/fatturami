@@ -11,6 +11,27 @@ import {
   type ImportResult,
   type ValidationError,
 } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ParsedRow = Record<string, string>;
 
@@ -78,7 +99,7 @@ export default function CSVImporter() {
   const handleMappingChange = (fieldKey: string, csvColumn: string) => {
     setMapping((prev) => {
       const next = { ...prev };
-      if (csvColumn === "") {
+      if (csvColumn === "__unmapped__") {
         delete next[fieldKey];
       } else {
         next[fieldKey] = csvColumn;
@@ -135,43 +156,39 @@ export default function CSVImporter() {
   return (
     <div className="space-y-6">
       {/* Import Type Toggle */}
-      <div className="flex gap-4 rounded-lg border border-gray-200 p-4">
-        <label className="text-sm font-medium text-gray-700">Tipo di importazione:</label>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setImportType("issued");
-              if (step !== "upload") handleReset();
-            }}
-            className={`rounded-md px-4 py-2 text-sm font-medium ${
-              importType === "issued"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Fatture Emesse
-          </button>
-          <button
-            onClick={() => {
-              setImportType("received");
-              if (step !== "upload") handleReset();
-            }}
-            className={`rounded-md px-4 py-2 text-sm font-medium ${
-              importType === "received"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Fatture Ricevute
-          </button>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex gap-4 items-center py-4">
+          <Label className="text-sm font-medium">Tipo di importazione:</Label>
+          <div className="flex gap-2">
+            <Button
+              variant={importType === "issued" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setImportType("issued");
+                if (step !== "upload") handleReset();
+              }}
+            >
+              Fatture Emesse
+            </Button>
+            <Button
+              variant={importType === "received" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setImportType("received");
+                if (step !== "upload") handleReset();
+              }}
+            >
+              Fatture Ricevute
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Error Display */}
       {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Step 1: File Upload */}
@@ -185,11 +202,11 @@ export default function CSVImporter() {
                 : "Importa fatture ricevute dai fornitori"}
             </p>
           </div>
-          <input
+          <Input
             type="file"
             accept=".csv,.txt"
             onChange={handleFileUpload}
-            className="mx-auto block text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+            className="mx-auto w-auto"
           />
           <p className="mt-4 text-xs text-gray-400">
             Formato supportato: CSV con intestazione. Separatori: virgola, punto e virgola, tab.
@@ -210,45 +227,45 @@ export default function CSVImporter() {
             Associa le colonne del CSV ai campi del sistema. I campi contrassegnati con * sono obbligatori.
           </p>
 
-          <div className="rounded-lg border border-gray-200 divide-y divide-gray-200">
-            {fields.map((field) => (
-              <div key={field.key} className="flex items-center gap-4 px-4 py-3">
-                <label className="w-48 text-sm font-medium text-gray-700">
-                  {field.label}
-                  {field.required && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                <select
-                  value={mapping[field.key] || ""}
-                  onChange={(e) => handleMappingChange(field.key, e.target.value)}
-                  className="flex-1 rounded-md border-gray-300 shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">-- Non mappato --</option>
-                  {csvHeaders.map((header) => (
-                    <option key={header} value={header}>
-                      {header}
-                    </option>
-                  ))}
-                </select>
-                {mapping[field.key] && (
-                  <span className="text-xs text-green-600">Mappato</span>
-                )}
-              </div>
-            ))}
-          </div>
+          <Card>
+            <CardContent className="p-0 divide-y">
+              {fields.map((field) => (
+                <div key={field.key} className="flex items-center gap-4 px-4 py-3">
+                  <Label className="w-48 text-sm font-medium">
+                    {field.label}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                  </Label>
+                  <Select
+                    value={mapping[field.key] || undefined}
+                    onValueChange={(value) => handleMappingChange(field.key, value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="-- Non mappato --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unmapped__">-- Non mappato --</SelectItem>
+                      {csvHeaders.map((header) => (
+                        <SelectItem key={header} value={header}>
+                          {header}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {mapping[field.key] && (
+                    <span className="text-xs text-green-600">Mappato</span>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
           <div className="flex gap-3">
-            <button
-              onClick={handleReset}
-              className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
+            <Button variant="outline" onClick={handleReset}>
               Annulla
-            </button>
-            <button
-              onClick={handleProceedToPreview}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
+            </Button>
+            <Button onClick={handleProceedToPreview}>
               Anteprima
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -263,63 +280,62 @@ export default function CSVImporter() {
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-500">#</th>
-                  {fields
-                    .filter((f) => mapping[f.key])
-                    .map((f) => (
-                      <th key={f.key} className="px-3 py-2 text-left font-medium text-gray-500">
-                        {f.label}
-                      </th>
-                    ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {previewRows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
                     {fields
                       .filter((f) => mapping[f.key])
                       .map((f) => (
-                        <td key={f.key} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-48 truncate">
-                          {row[mapping[f.key]] || <span className="text-gray-300">-</span>}
-                        </td>
+                        <TableHead key={f.key}>{f.label}</TableHead>
                       ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {previewRows.map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="text-gray-400">{idx + 1}</TableCell>
+                      {fields
+                        .filter((f) => mapping[f.key])
+                        .map((f) => (
+                          <TableCell key={f.key} className="whitespace-nowrap max-w-48 truncate">
+                            {row[mapping[f.key]] || <span className="text-gray-300">-</span>}
+                          </TableCell>
+                        ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-          <div className="rounded-md bg-blue-50 border border-blue-200 p-4 text-sm text-blue-700">
-            <p className="font-medium">Riepilogo importazione:</p>
-            <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li>{csvRows.length} righe totali da importare</li>
-              <li>
-                Tipo: {importType === "issued" ? "Fatture emesse" : "Fatture ricevute"}
-              </li>
-              <li>
-                Clienti/fornitori non trovati verranno creati automaticamente
-              </li>
-            </ul>
-          </div>
+          <Alert className="border-blue-300 bg-blue-50">
+            <AlertDescription className="text-blue-700">
+              <p className="font-medium">Riepilogo importazione:</p>
+              <ul className="mt-2 list-disc pl-5 space-y-1">
+                <li>{csvRows.length} righe totali da importare</li>
+                <li>
+                  Tipo: {importType === "issued" ? "Fatture emesse" : "Fatture ricevute"}
+                </li>
+                <li>
+                  Clienti/fornitori non trovati verranno creati automaticamente
+                </li>
+              </ul>
+            </AlertDescription>
+          </Alert>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => setStep("mapping")}
-              className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
+            <Button variant="outline" onClick={() => setStep("mapping")}>
               Modifica Mappatura
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleImport}
-              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700"
             >
               Importa
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -335,66 +351,77 @@ export default function CSVImporter() {
       {/* Step 5: Result */}
       {step === "result" && result && (
         <div className="space-y-4">
-          <div
-            className={`rounded-md p-4 ${
-              result.success && result.errors.length === 0
-                ? "bg-green-50 border border-green-200"
-                : result.success
-                  ? "bg-yellow-50 border border-yellow-200"
-                  : "bg-red-50 border border-red-200"
-            }`}
-          >
-            <h3
-              className={`text-lg font-medium ${
-                result.success && result.errors.length === 0
-                  ? "text-green-800"
-                  : result.success
-                    ? "text-yellow-800"
-                    : "text-red-800"
-              }`}
-            >
-              {result.success
-                ? result.errors.length === 0
-                  ? "Importazione completata"
-                  : "Importazione completata con avvisi"
-                : "Importazione fallita"}
-            </h3>
-            <div className="mt-2 text-sm">
-              <p>
-                {importType === "issued" ? "Fatture" : "Fatture acquisto"} importate:{" "}
-                <strong>{result.importedCount}</strong>
-              </p>
-              {result.createdClients !== undefined && result.createdClients > 0 && (
-                <p>Clienti creati: <strong>{result.createdClients}</strong></p>
-              )}
-              {result.createdSuppliers !== undefined && result.createdSuppliers > 0 && (
-                <p>Fornitori creati: <strong>{result.createdSuppliers}</strong></p>
-              )}
-            </div>
-          </div>
+          {result.success && result.errors.length === 0 ? (
+            <Alert>
+              <AlertDescription>
+                <h3 className="text-lg font-medium">Importazione completata</h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    {importType === "issued" ? "Fatture" : "Fatture acquisto"} importate:{" "}
+                    <strong>{result.importedCount}</strong>
+                  </p>
+                  {result.createdClients !== undefined && result.createdClients > 0 && (
+                    <p>Clienti creati: <strong>{result.createdClients}</strong></p>
+                  )}
+                  {result.createdSuppliers !== undefined && result.createdSuppliers > 0 && (
+                    <p>Fornitori creati: <strong>{result.createdSuppliers}</strong></p>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : result.success ? (
+            <Alert className="border-yellow-300 bg-yellow-50">
+              <AlertDescription className="text-yellow-700">
+                <h3 className="text-lg font-medium">Importazione completata con avvisi</h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    {importType === "issued" ? "Fatture" : "Fatture acquisto"} importate:{" "}
+                    <strong>{result.importedCount}</strong>
+                  </p>
+                  {result.createdClients !== undefined && result.createdClients > 0 && (
+                    <p>Clienti creati: <strong>{result.createdClients}</strong></p>
+                  )}
+                  {result.createdSuppliers !== undefined && result.createdSuppliers > 0 && (
+                    <p>Fornitori creati: <strong>{result.createdSuppliers}</strong></p>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <h3 className="text-lg font-medium">Importazione fallita</h3>
+                <div className="mt-2 text-sm">
+                  <p>
+                    {importType === "issued" ? "Fatture" : "Fatture acquisto"} importate:{" "}
+                    <strong>{result.importedCount}</strong>
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Error/Warning List */}
           {result.errors.length > 0 && (
-            <div className="rounded-lg border border-gray-200">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                <h4 className="text-sm font-medium text-gray-700">
-                  {result.success ? "Avvisi" : "Errori"} ({result.errors.length})
-                </h4>
-              </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-                {result.errors.map((err, idx) => (
-                  <ErrorRow key={idx} error={err} />
-                ))}
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-0">
+                <div className="bg-gray-50 px-4 py-2 border-b">
+                  <h4 className="text-sm font-medium text-gray-700">
+                    {result.success ? "Avvisi" : "Errori"} ({result.errors.length})
+                  </h4>
+                </div>
+                <div className="max-h-64 overflow-y-auto divide-y">
+                  {result.errors.map((err, idx) => (
+                    <ErrorRow key={idx} error={err} />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          <button
-            onClick={handleReset}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          <Button onClick={handleReset}>
             Nuova Importazione
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -404,9 +431,9 @@ export default function CSVImporter() {
 function ErrorRow({ error }: { error: ValidationError }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 text-sm">
-      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+      <Badge variant="destructive">
         Riga {error.row}
-      </span>
+      </Badge>
       {error.field && (
         <span className="text-gray-500">{error.field}:</span>
       )}

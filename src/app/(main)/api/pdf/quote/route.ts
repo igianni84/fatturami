@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { InvoicePDF, PDFInvoiceData } from "@/lib/pdf/InvoicePDF";
 import { PDFLanguage } from "@/lib/pdf/translations";
 
 export async function GET(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const quoteId = searchParams.get("id");
   const language = (searchParams.get("lang") || "ES") as PDFLanguage;
@@ -18,30 +24,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid language" }, { status: 400 });
   }
 
-  const quote = await prisma.quote.findUnique({
-    where: { id: quoteId },
-    include: {
-      client: {
-        select: {
-          name: true,
-          vatNumber: true,
-          address: true,
-          city: true,
-          postalCode: true,
-          country: true,
+  const [quote, company] = await Promise.all([
+    prisma.quote.findUnique({
+      where: { id: quoteId },
+      include: {
+        client: {
+          select: {
+            name: true,
+            vatNumber: true,
+            address: true,
+            city: true,
+            postalCode: true,
+            country: true,
+          },
+        },
+        lines: {
+          include: { taxRate: { select: { name: true, rate: true } } },
         },
       },
-      lines: {
-        include: { taxRate: { select: { name: true, rate: true } } },
-      },
-    },
-  });
+    }),
+    prisma.company.findFirst(),
+  ]);
 
   if (!quote) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
-
-  const company = await prisma.company.findFirst();
 
   const companyData = company
     ? {

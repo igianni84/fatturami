@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { InvoicePDF, PDFInvoiceData } from "@/lib/pdf/InvoicePDF";
 import { PDFLanguage } from "@/lib/pdf/translations";
 
 export async function GET(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const invoiceId = searchParams.get("id");
   const language = (searchParams.get("lang") || "ES") as PDFLanguage;
@@ -18,32 +24,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid language" }, { status: 400 });
   }
 
-  // Fetch invoice with all related data
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    include: {
-      client: {
-        select: {
-          name: true,
-          vatNumber: true,
-          address: true,
-          city: true,
-          postalCode: true,
-          country: true,
+  // Fetch invoice and company data in parallel
+  const [invoice, company] = await Promise.all([
+    prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        client: {
+          select: {
+            name: true,
+            vatNumber: true,
+            address: true,
+            city: true,
+            postalCode: true,
+            country: true,
+          },
+        },
+        lines: {
+          include: { taxRate: { select: { name: true, rate: true } } },
         },
       },
-      lines: {
-        include: { taxRate: { select: { name: true, rate: true } } },
-      },
-    },
-  });
+    }),
+    prisma.company.findFirst(),
+  ]);
 
   if (!invoice) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
-
-  // Fetch company data
-  const company = await prisma.company.findFirst();
 
   const companyData = company
     ? {
@@ -75,6 +81,9 @@ export async function GET(request: NextRequest) {
     date: invoice.date.toISOString().split("T")[0],
     dueDate: invoice.dueDate
       ? invoice.dueDate.toISOString().split("T")[0]
+      : undefined,
+    paidAt: invoice.paidAt
+      ? invoice.paidAt.toISOString().split("T")[0]
       : undefined,
     currency: invoice.currency,
     exchangeRate:

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
 import { SupplierListItem, deleteSupplier } from "./actions";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface SupplierListProps {
   suppliers: SupplierListItem[];
@@ -65,12 +67,9 @@ export default function SupplierList({ suppliers, totalCount, page, search }: Su
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Fornitori</h1>
-        <Link
-          href="/anagrafiche/fornitori/nuovo"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-        >
-          + Nuovo Fornitore
-        </Link>
+        <Button asChild>
+          <Link href="/anagrafiche/fornitori/nuovo">+ Nuovo Fornitore</Link>
+        </Button>
       </div>
 
       <DataTable
@@ -81,52 +80,44 @@ export default function SupplierList({ suppliers, totalCount, page, search }: Su
         pageSize={10}
         searchValue={search}
         searchPlaceholder="Cerca per nome o partita IVA..."
+        emptyMessage="Nessun fornitore trovato"
         onSearch={(query) => navigateTo({ search: query })}
         onPageChange={(newPage) => navigateTo({ page: newPage })}
+        onRowClick={(item) => router.push(`/anagrafiche/fornitori/${item.id}/modifica`)}
         actions={(item) => (
           <div className="flex gap-2 justify-end">
-            <Link
-              href={`/anagrafiche/fornitori/${item.id}/modifica`}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              Modifica
-            </Link>
-            <button
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/anagrafiche/fornitori/${item.id}/modifica`}>
+                Modifica
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
               onClick={() => setDeleteConfirm(item)}
-              className="text-red-600 hover:text-red-800 text-sm font-medium"
             >
               Elimina
-            </button>
+            </Button>
           </div>
         )}
       />
 
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              Conferma eliminazione
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Sei sicuro di voler eliminare il fornitore <strong>{deleteConfirm.name}</strong>? Questa azione non può essere annullata.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                Annulla
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-              >
-                Elimina
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Conferma eliminazione"
+        description={
+          <>
+            Sei sicuro di voler eliminare il fornitore{" "}
+            <strong>{deleteConfirm?.name}</strong>? Questa azione non può
+            essere annullata.
+          </>
+        }
+        confirmLabel="Elimina"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getCurrentUser, verifyPassword, hashPassword } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 
 // NIF validation: 8 digits + letter (DNI) or letter + 7 digits + letter (NIE/CIF)
 const nifRegex = /^(\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i;
@@ -81,7 +82,11 @@ const changePasswordSchema = z
     currentPassword: z.string().min(1, "La password attuale è obbligatoria"),
     newPassword: z
       .string()
-      .min(8, "La nuova password deve avere almeno 8 caratteri"),
+      .min(12, "La password deve avere almeno 12 caratteri")
+      .regex(/[A-Z]/, "La password deve contenere almeno una lettera maiuscola")
+      .regex(/[a-z]/, "La password deve contenere almeno una lettera minuscola")
+      .regex(/[0-9]/, "La password deve contenere almeno un numero")
+      .regex(/[^A-Za-z0-9]/, "La password deve contenere almeno un carattere speciale"),
     confirmPassword: z.string().min(1, "La conferma password è obbligatoria"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -138,6 +143,12 @@ export async function changePassword(
   await prisma.user.update({
     where: { id: user.id },
     data: { password: hashedPassword },
+  });
+
+  await logAuditEvent({
+    userId: user.id,
+    action: "PASSWORD_CHANGE",
+    details: { email: user.email },
   });
 
   return { success: true, message: "Password aggiornata con successo" };

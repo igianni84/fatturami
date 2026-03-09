@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { extractRateLimiter } from "@/lib/rate-limit";
+import { validateFileType } from "@/lib/file-validation";
 
 export interface ExtractedLineItem {
   description: string;
@@ -50,8 +53,40 @@ Important:
 - Extract ALL line items visible in the document
 - The VAT number should include the country prefix if visible (e.g., ES, IT, FR)`;
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limiting: 10 requests per minute per user
+    const rateLimitResult = extractRateLimiter.check(user.userId);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Troppe richieste. Riprova tra qualche secondo." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(
+              Math.ceil(rateLimitResult.retryAfterMs / 1000)
+            ),
+          },
+        }
+      );
+    }
+
+    // SEC-21: Validate Content-Type header
+    const contentType = request.headers.get("content-type");
+    if (!contentType?.includes("multipart/form-data")) {
+      return NextResponse.json(
+        { error: "Content-Type deve essere multipart/form-data." },
+        { status: 400 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -62,17 +97,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const allowedTypes = [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-    ];
-    if (!allowedTypes.includes(file.type)) {
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File type not supported. Use PDF, JPG, PNG, WebP, or GIF." },
+        { error: "File troppo grande. Massimo 10MB consentiti." },
+        { status: 413 }
+      );
+    }
+
+    // SEC-19: Validate file type via magic bytes + extension
+    const fileValidation = await validateFileType(file);
+    if (!fileValidation.valid) {
+      return NextResponse.json(
+        { error: fileValidation.error },
         { status: 400 }
       );
     }
@@ -91,19 +127,8 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
 
-    // Determine media type for the API
-    let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" | "application/pdf";
-    if (file.type === "application/pdf") {
-      mediaType = "application/pdf";
-    } else if (file.type === "image/png") {
-      mediaType = "image/png";
-    } else if (file.type === "image/gif") {
-      mediaType = "image/gif";
-    } else if (file.type === "image/webp") {
-      mediaType = "image/webp";
-    } else {
-      mediaType = "image/jpeg";
-    }
+    // Use media type detected from magic bytes (not client-supplied MIME)
+    const mediaType = fileValidation.mediaType;
 
     // Call Claude API with vision
     const content: Anthropic.MessageCreateParams["messages"][0]["content"] = mediaType === "application/pdf"
@@ -166,8 +191,9 @@ export async function POST(request: NextRequest) {
       if (jsonMatch) {
         extracted = JSON.parse(jsonMatch[0]);
       } else {
+        console.error("Failed to parse AI response:", textBlock.text);
         return NextResponse.json(
-          { error: "Failed to parse AI response", rawResponse: textBlock.text },
+          { error: "Risposta AI non valida. Riprova con un altro file." },
           { status: 500 }
         );
       }
@@ -212,9 +238,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Extraction error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: `Extraction failed: ${message}` },
+      { error: "Estrazione fallita. Riprova con un altro file." },
       { status: 500 }
     );
   }

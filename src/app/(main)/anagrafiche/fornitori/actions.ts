@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { ExpenseCategory } from "@prisma/client";
 
@@ -106,6 +107,11 @@ export async function getSupplier(id: string): Promise<SupplierFormData | null> 
 export async function createSupplier(
   data: SupplierFormData
 ): Promise<SupplierActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = supplierSchema.safeParse(data);
   if (!result.success) {
     return {
@@ -130,6 +136,11 @@ export async function updateSupplier(
   id: string,
   data: SupplierFormData
 ): Promise<SupplierActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = supplierSchema.safeParse(data);
   if (!result.success) {
     return {
@@ -152,6 +163,11 @@ export async function updateSupplier(
 // --- Delete supplier (soft delete) ---
 
 export async function deleteSupplier(id: string): Promise<SupplierActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   await prisma.supplier.update({
     where: { id },
     data: { deletedAt: new Date() },

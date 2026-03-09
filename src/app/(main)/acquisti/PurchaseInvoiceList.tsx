@@ -1,13 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
 import {
   PurchaseInvoiceListItem,
   SupplierOption,
   updatePurchaseInvoiceStatus,
+  deletePurchaseInvoice,
 } from "./actions";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
+import { getStatusColor } from "@/lib/status-colors";
 
 interface PurchaseInvoiceListProps {
   purchaseInvoices: PurchaseInvoiceListItem[];
@@ -20,11 +35,6 @@ interface PurchaseInvoiceListProps {
   currentDateFrom: string;
   currentDateTo: string;
 }
-
-const statusColors: Record<string, string> = {
-  registrata: "bg-blue-100 text-blue-800",
-  pagata: "bg-green-100 text-green-800",
-};
 
 const statusLabels: Record<string, string> = {
   registrata: "Registrata",
@@ -70,6 +80,7 @@ export default function PurchaseInvoiceList({
 }: PurchaseInvoiceListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [deleteConfirm, setDeleteConfirm] = useState<PurchaseInvoiceListItem | null>(null);
 
   const navigateTo = (params: Record<string, string | undefined>) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -88,6 +99,16 @@ export default function PurchaseInvoiceList({
 
   const handleMarkPaid = async (id: string) => {
     await updatePurchaseInvoiceStatus(id, "pagata");
+    router.refresh();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    const result = await deletePurchaseInvoice(deleteConfirm.id);
+    setDeleteConfirm(null);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'eliminazione");
+    }
     router.refresh();
   };
 
@@ -113,11 +134,9 @@ export default function PurchaseInvoiceList({
       key: "status",
       header: "Stato",
       render: (item) => (
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[item.status] || "bg-gray-100 text-gray-800"}`}
-        >
+        <Badge variant="outline" className={getStatusColor(item.status)}>
           {statusLabels[item.status] || item.status}
-        </span>
+        </Badge>
       ),
     },
   ];
@@ -126,12 +145,9 @@ export default function PurchaseInvoiceList({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Fatture di acquisto</h1>
-        <Link
-          href="/acquisti/nuovo"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-        >
-          + Nuova fattura acquisto
-        </Link>
+        <Button asChild>
+          <Link href="/acquisti/nuovo">+ Nuova fattura acquisto</Link>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -139,17 +155,14 @@ export default function PurchaseInvoiceList({
         {/* Status filter */}
         <div className="flex gap-2 flex-wrap">
           {allStatuses.map((status) => (
-            <button
+            <Button
               key={status}
+              variant={currentStatus === status ? "default" : "outline"}
+              size="sm"
               onClick={() => navigateTo({ status, page: "1" })}
-              className={`px-3 py-1.5 text-sm rounded-md border ${
-                currentStatus === status
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              }`}
             >
               {status === "tutti" ? "Tutti" : statusLabels[status]}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -230,19 +243,42 @@ export default function PurchaseInvoiceList({
         totalCount={totalCount}
         page={page}
         pageSize={10}
+        emptyMessage="Nessuna fattura di acquisto trovata"
         onPageChange={(newPage) => navigateTo({ page: String(newPage) })}
+        onRowClick={(item) => router.push(`/acquisti/${item.id}`)}
         actions={(item) => (
-          <div className="flex gap-2 justify-end items-center">
-            {item.status === "registrata" && (
-              <button
-                onClick={() => handleMarkPaid(item.id)}
-                className="text-green-600 hover:text-green-800 text-sm font-medium"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Azioni fattura acquisto">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {item.status === "registrata" && (
+                <DropdownMenuItem onClick={() => handleMarkPaid(item.id)}>
+                  Segna come pagata
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirm(item)}
               >
-                Segna pagata
-              </button>
-            )}
-          </div>
+                Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Conferma eliminazione"
+        description={<>Sei sicuro di voler eliminare la fattura di acquisto <strong>{deleteConfirm?.number}</strong>? Questa azione non può essere annullata.</>}
+        confirmLabel="Elimina"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );

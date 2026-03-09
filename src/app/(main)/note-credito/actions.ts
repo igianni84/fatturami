@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -189,11 +190,39 @@ export async function getCreditNotes(params: {
   return { items, totalCount };
 }
 
+// --- Delete credit note ---
+
+export async function deleteCreditNote(
+  creditNoteId: string
+): Promise<CreditNoteActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
+  const creditNote = await prisma.creditNote.findUnique({
+    where: { id: creditNoteId },
+    select: { id: true },
+  });
+
+  if (!creditNote) {
+    return { success: false, message: "Nota di credito non trovata" };
+  }
+
+  await prisma.creditNote.delete({ where: { id: creditNoteId } });
+  return { success: true, message: "Nota di credito eliminata" };
+}
+
 // --- Create credit note ---
 
 export async function createCreditNote(
   data: CreditNoteFormData
 ): Promise<CreditNoteActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = creditNoteSchema.safeParse(data);
   if (!result.success) {
     const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>;

@@ -2,12 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/hooks/useUnsavedChanges";
 import {
   ClientOptionWithVat,
   TaxRateOption,
   InvoiceFormData,
   createInvoice,
 } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LineItem {
   description: string;
@@ -45,6 +57,8 @@ function getDefaultTaxRateType(
 export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChanges(isDirty && !saving);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const [clientId, setClientId] = useState("");
@@ -151,6 +165,10 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
 
   function removeLine(index: number) {
     if (lines.length <= 1) return;
+    const line = lines[index];
+    if (line.description || line.unitPrice > 0) {
+      if (!window.confirm("Sei sicuro di voler rimuovere questa riga?")) return;
+    }
     setLines((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -198,28 +216,29 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
   const currencySymbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+    <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="max-w-4xl space-y-6">
       {/* Header fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Client selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Cliente *
-          </label>
-          <select
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+          <Label className="mb-1">Cliente *</Label>
+          <Select
+            value={clientId || undefined}
+            onValueChange={(value) => setClientId(value)}
           >
-            <option value="">-- Seleziona cliente --</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.country})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona cliente..." />
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name} ({c.country})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {fieldError("clientId") && (
-            <p className="text-red-600 text-sm mt-1">
+            <p className="text-sm text-destructive mt-1">
               {fieldError("clientId")}
             </p>
           )}
@@ -232,52 +251,48 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data *
-          </label>
-          <input
+          <Label className="mb-1">Data *</Label>
+          <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
           />
           {fieldError("date") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("date")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("date")}</p>
           )}
         </div>
 
         {/* Due Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data scadenza
-          </label>
-          <input
+          <Label className="mb-1">Data scadenza</Label>
+          <Input
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
           />
         </div>
 
         {/* Currency */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Valuta *
-          </label>
-          <select
+          <Label className="mb-1">Valuta *</Label>
+          <Select
             value={currency}
-            onChange={(e) => {
-              setCurrency(e.target.value);
-              if (e.target.value === "EUR") setExchangeRate(1);
+            onValueChange={(value) => {
+              setCurrency(value);
+              if (value === "EUR") setExchangeRate(1);
             }}
-            className="w-full border border-gray-300 rounded px-3 py-2"
           >
-            <option value="EUR">EUR - Euro</option>
-            <option value="GBP">GBP - Sterlina britannica</option>
-            <option value="USD">USD - Dollaro americano</option>
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona valuta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="EUR">EUR - Euro</SelectItem>
+              <SelectItem value="GBP">GBP - Sterlina britannica</SelectItem>
+              <SelectItem value="USD">USD - Dollaro americano</SelectItem>
+            </SelectContent>
+          </Select>
           {fieldError("currency") && (
-            <p className="text-red-600 text-sm mt-1">
+            <p className="text-sm text-destructive mt-1">
               {fieldError("currency")}
             </p>
           )}
@@ -286,10 +301,10 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
         {/* Exchange Rate (only if non-EUR) */}
         {currency !== "EUR" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label className="mb-1">
               Tasso di cambio (1 {currency} = X EUR)
-            </label>
-            <input
+            </Label>
+            <Input
               type="number"
               value={exchangeRate}
               onChange={(e) =>
@@ -297,10 +312,9 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
               }
               min="0.0001"
               step="0.0001"
-              className="w-full border border-gray-300 rounded px-3 py-2"
             />
             {fieldError("exchangeRate") && (
-              <p className="text-red-600 text-sm mt-1">
+              <p className="text-sm text-destructive mt-1">
                 {fieldError("exchangeRate")}
               </p>
             )}
@@ -312,7 +326,7 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
       <div>
         <h3 className="text-lg font-medium text-gray-800 mb-2">Righe</h3>
         {fieldError("lines") && (
-          <p className="text-red-600 text-sm mb-2">{fieldError("lines")}</p>
+          <p className="text-sm text-destructive mb-2">{fieldError("lines")}</p>
         )}
 
         <div className="space-y-3">
@@ -324,26 +338,26 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                 {/* Description */}
                 <div className="md:col-span-4">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Descrizione
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     value={line.description}
                     onChange={(e) =>
                       updateLine(index, "description", e.target.value)
                     }
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                     placeholder="Descrizione servizio/prodotto"
                   />
                 </div>
 
                 {/* Quantity */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Quantità
-                  </label>
-                  <input
+                  <Label className="text-xs text-gray-600 mb-1">
+                    Quantita
+                  </Label>
+                  <Input
                     type="number"
                     value={line.quantity}
                     onChange={(e) =>
@@ -355,16 +369,16 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Unit Price */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Prezzo unit.
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="number"
                     value={line.unitPrice}
                     onChange={(e) =>
@@ -376,29 +390,32 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Tax Rate */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Aliquota IVA
-                  </label>
-                  <select
-                    value={line.taxRateId}
-                    onChange={(e) =>
-                      updateLine(index, "taxRateId", e.target.value)
+                  </Label>
+                  <Select
+                    value={line.taxRateId || undefined}
+                    onValueChange={(value) =>
+                      updateLine(index, "taxRateId", value)
                     }
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   >
-                    <option value="">-- IVA --</option>
-                    {taxRates.map((rate) => (
-                      <option key={rate.id} value={rate.id}>
-                        {rate.name} ({rate.rate}%)
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Seleziona aliquota..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {taxRates.map((rate) => (
+                        <SelectItem key={rate.id} value={rate.id}>
+                          {rate.name} ({rate.rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Line total + remove */}
@@ -407,14 +424,15 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
                     {currencySymbol} {formatCurrency(lineTotal(line))}
                   </span>
                   {lines.length > 1 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
                       onClick={() => removeLine(index)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                      title="Rimuovi riga"
                     >
-                      ✕
-                    </button>
+                      Rimuovi
+                    </Button>
                   )}
                 </div>
               </div>
@@ -422,13 +440,14 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
           ))}
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={addLine}
-          className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="mt-3"
         >
           + Aggiungi riga
-        </button>
+        </Button>
       </div>
 
       {/* Totals */}
@@ -459,34 +478,27 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Note
-        </label>
-        <textarea
+        <Label className="mb-1">Note</Label>
+        <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full border border-gray-300 rounded px-3 py-2"
           placeholder="Note aggiuntive..."
         />
       </div>
 
       {/* Actions */}
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={saving}>
           {saving ? "Salvataggio..." : "Salva Fattura"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push("/fatture")}
-          className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50"
         >
           Annulla
-        </button>
+        </Button>
       </div>
     </form>
   );

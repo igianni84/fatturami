@@ -2,11 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/hooks/useUnsavedChanges";
 import {
   InvoiceForCreditNote,
   CreditNoteFormData,
   createCreditNote,
 } from "../../actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LineItem {
   description: string;
@@ -22,6 +35,8 @@ interface CreditNoteFormProps {
 export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChanges(isDirty && !saving);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -68,6 +83,10 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
 
   function removeLine(index: number) {
     if (lines.length <= 1) return;
+    const line = lines[index];
+    if (line.description || line.unitPrice > 0) {
+      if (!window.confirm("Sei sicuro di voler rimuovere questa riga?")) return;
+    }
     setLines((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -120,7 +139,7 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
         : "$";
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+    <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="max-w-4xl space-y-6">
       {/* Reference invoice info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h2 className="text-sm font-semibold text-blue-800 mb-2">
@@ -139,24 +158,21 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
       </div>
 
       {fieldError("_form") && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="text-red-700 text-sm">{fieldError("_form")}</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{fieldError("_form")}</AlertDescription>
+        </Alert>
       )}
 
       {/* Date */}
       <div className="max-w-xs">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Data nota di credito *
-        </label>
-        <input
+        <Label className="mb-1">Data nota di credito *</Label>
+        <Input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
         />
         {fieldError("date") && (
-          <p className="text-red-600 text-sm mt-1">{fieldError("date")}</p>
+          <p className="text-sm text-destructive mt-1">{fieldError("date")}</p>
         )}
       </div>
 
@@ -166,7 +182,7 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
           Righe (modifica o rimuovi per nota parziale)
         </h3>
         {fieldError("lines") && (
-          <p className="text-red-600 text-sm mb-2">{fieldError("lines")}</p>
+          <p className="text-sm text-destructive mb-2">{fieldError("lines")}</p>
         )}
 
         <div className="space-y-3">
@@ -178,25 +194,25 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                 {/* Description */}
                 <div className="md:col-span-4">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Descrizione
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     value={line.description}
                     onChange={(e) =>
                       updateLine(index, "description", e.target.value)
                     }
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Quantity */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Quantità
-                  </label>
-                  <input
+                  <Label className="text-xs text-gray-600 mb-1">
+                    Quantita
+                  </Label>
+                  <Input
                     type="number"
                     value={line.quantity}
                     onChange={(e) =>
@@ -208,16 +224,16 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Unit Price */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Prezzo unit.
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="number"
                     value={line.unitPrice}
                     onChange={(e) =>
@@ -229,29 +245,32 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Tax Rate */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Aliquota IVA
-                  </label>
-                  <select
-                    value={line.taxRateId}
-                    onChange={(e) =>
-                      updateLine(index, "taxRateId", e.target.value)
+                  </Label>
+                  <Select
+                    value={line.taxRateId || undefined}
+                    onValueChange={(value) =>
+                      updateLine(index, "taxRateId", value)
                     }
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   >
-                    <option value="">-- IVA --</option>
-                    {invoice.taxRates.map((rate) => (
-                      <option key={rate.id} value={rate.id}>
-                        {rate.name} ({rate.rate}%)
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Seleziona aliquota..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {invoice.taxRates.map((rate) => (
+                        <SelectItem key={rate.id} value={rate.id}>
+                          {rate.name} ({rate.rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Line total + remove */}
@@ -260,14 +279,15 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
                     {currencySymbol} {formatCurrency(lineTotal(line))}
                   </span>
                   {lines.length > 1 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
                       onClick={() => removeLine(index)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                      title="Rimuovi riga"
                     >
-                      ✕
-                    </button>
+                      Rimuovi
+                    </Button>
                   )}
                 </div>
               </div>
@@ -304,34 +324,27 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Note
-        </label>
-        <textarea
+        <Label className="mb-1">Note</Label>
+        <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full border border-gray-300 rounded px-3 py-2"
           placeholder="Note aggiuntive..."
         />
       </div>
 
       {/* Actions */}
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
-        >
-          {saving ? "Salvataggio..." : "Crea Nota di Credito"}
-        </button>
-        <button
+        <Button type="submit" disabled={saving}>
+          {saving ? "Salvataggio..." : "Salva Nota di Credito"}
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push(`/fatture/${invoice.id}`)}
-          className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50"
         >
           Annulla
-        </button>
+        </Button>
       </div>
     </form>
   );

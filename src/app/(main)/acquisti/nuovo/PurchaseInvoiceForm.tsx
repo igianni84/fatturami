@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/hooks/useUnsavedChanges";
+import { toast } from "sonner";
 import {
   SupplierOption,
   TaxRateOption,
@@ -9,6 +11,20 @@ import {
   createPurchaseInvoice,
 } from "../actions";
 import type { ExtractionResult } from "@/app/(main)/api/extract/route";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FileDropzone } from "@/components/FileDropzone";
 
 interface LineItem {
   description: string;
@@ -57,16 +73,26 @@ export default function PurchaseInvoiceForm({
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChanges(isDirty && !saving);
   const [extracting, setExtracting] = useState(false);
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   const [unmatchedSupplier, setUnmatchedSupplier] = useState<string | null>(null);
 
   // Handle file upload with AI extraction
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   async function handleFileChange(selectedFile: File | null) {
     setFile(selectedFile);
     setUnmatchedSupplier(null);
     if (!selectedFile) return;
+
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error("Il file supera il limite di 10MB");
+      setFile(null);
+      return;
+    }
 
     setExtracting(true);
     setExtractionMessage(null);
@@ -171,6 +197,10 @@ export default function PurchaseInvoiceForm({
 
   function removeLine(index: number) {
     if (lines.length <= 1) return;
+    const line = lines[index];
+    if (line.description || line.amount > 0) {
+      if (!window.confirm("Sei sicuro di voler rimuovere questa riga?")) return;
+    }
     setLines((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -218,112 +248,117 @@ export default function PurchaseInvoiceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+    <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="max-w-4xl space-y-6">
       {/* Header fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Supplier */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fornitore *
-          </label>
-          <select
-            value={supplierId}
-            onChange={(e) => handleSupplierChange(e.target.value)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("supplierId")}`}
+          <Label className="mb-1">Fornitore *</Label>
+          <Select
+            value={supplierId || undefined}
+            onValueChange={(value) => handleSupplierChange(value)}
           >
-            <option value="">Seleziona fornitore</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className={fieldHighlight("supplierId")}>
+              <SelectValue placeholder="Seleziona fornitore" />
+            </SelectTrigger>
+            <SelectContent>
+              {suppliers.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.supplierId && (
-            <p className="text-red-600 text-sm mt-1">{errors.supplierId[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.supplierId[0]}</p>
           )}
         </div>
 
         {/* Invoice number */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Numero fattura fornitore *
-          </label>
-          <input
+          <Label className="mb-1">Numero fattura fornitore *</Label>
+          <Input
             type="text"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("number")}`}
+            className={fieldHighlight("number")}
             placeholder="Es. FAT-2024-001"
           />
           {errors.number && (
-            <p className="text-red-600 text-sm mt-1">{errors.number[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.number[0]}</p>
           )}
         </div>
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data *
-          </label>
-          <input
+          <Label className="mb-1">Data *</Label>
+          <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("date")}`}
+            className={fieldHighlight("date")}
           />
           {errors.date && (
-            <p className="text-red-600 text-sm mt-1">{errors.date[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.date[0]}</p>
           )}
         </div>
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Categoria spesa *
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className={`w-full border border-gray-300 rounded-md px-3 py-2 ${fieldHighlight("category")}`}
+          <Label className="mb-1">Categoria spesa *</Label>
+          <Select
+            value={category || undefined}
+            onValueChange={(value) => setCategory(value)}
           >
-            <option value="">Seleziona categoria</option>
-            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className={fieldHighlight("category")}>
+              <SelectValue placeholder="Seleziona categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.category && (
-            <p className="text-red-600 text-sm mt-1">{errors.category[0]}</p>
+            <p className="text-sm text-destructive mt-1">{errors.category[0]}</p>
           )}
         </div>
       </div>
 
       {/* File upload with AI extraction */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Allegato (PDF/immagine)
-        </label>
-        <input
-          type="file"
+        <Label className="mb-1">Allegato (PDF/immagine)</Label>
+        <FileDropzone
           accept=".pdf,.jpg,.jpeg,.png"
-          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2"
           disabled={extracting}
-        />
-        {file && (
-          <p className="text-sm text-gray-500 mt-1">
-            File selezionato: {file.name}
-          </p>
-        )}
-        {extracting && (
-          <p className="text-sm text-blue-600 mt-1 flex items-center gap-2">
-            <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
-            Estrazione dati in corso...
-          </p>
-        )}
+          onFiles={(files) => handleFileChange(files[0] || null)}
+        >
+          <div className="space-y-1">
+            {extracting ? (
+              <p className="text-sm text-blue-600 flex items-center justify-center gap-2">
+                <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                Estrazione dati in corso...
+              </p>
+            ) : file ? (
+              <p className="text-sm text-muted-foreground">
+                File selezionato: <span className="font-medium">{file.name}</span>
+              </p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Trascina un file qui o clicca per selezionare
+                </p>
+                <p className="text-xs text-muted-foreground/70">
+                  Formati: PDF, JPG, PNG (max 10MB)
+                </p>
+              </>
+            )}
+          </div>
+        </FileDropzone>
         {extractionMessage && !extracting && (
-          <p className={`text-sm mt-1 ${autoFilledFields.size > 0 ? "text-green-600" : "text-amber-600"}`}>
+          <p className={`text-sm mt-2 ${autoFilledFields.size > 0 ? "text-green-600" : "text-amber-600"}`}>
             {extractionMessage}
           </p>
         )}
@@ -347,7 +382,7 @@ export default function PurchaseInvoiceForm({
           )}
         </h3>
         {errors.lines && (
-          <p className="text-red-600 text-sm mb-2">{errors.lines[0]}</p>
+          <p className="text-sm text-destructive mb-2">{errors.lines[0]}</p>
         )}
 
         <div className="space-y-3">
@@ -358,26 +393,26 @@ export default function PurchaseInvoiceForm({
             >
               {/* Description */}
               <div className="col-span-4">
-                <label className="block text-xs text-gray-500 mb-1">
+                <Label className="text-xs text-gray-500 mb-1">
                   Descrizione
-                </label>
-                <input
+                </Label>
+                <Input
                   type="text"
                   value={line.description}
                   onChange={(e) =>
                     updateLine(index, "description", e.target.value)
                   }
-                  className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  className="text-sm"
                   placeholder="Descrizione"
                 />
               </div>
 
               {/* Amount */}
               <div className="col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">
+                <Label className="text-xs text-gray-500 mb-1">
                   Importo
-                </label>
-                <input
+                </Label>
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
@@ -385,55 +420,57 @@ export default function PurchaseInvoiceForm({
                   onChange={(e) =>
                     updateLine(index, "amount", parseFloat(e.target.value) || 0)
                   }
-                  className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  className="text-sm"
                   placeholder="0.00"
                 />
               </div>
 
               {/* Tax rate */}
               <div className="col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">
+                <Label className="text-xs text-gray-500 mb-1">
                   Aliquota IVA
-                </label>
-                <select
-                  value={line.taxRateId}
-                  onChange={(e) =>
-                    updateLine(index, "taxRateId", e.target.value)
+                </Label>
+                <Select
+                  value={line.taxRateId || undefined}
+                  onValueChange={(value) =>
+                    updateLine(index, "taxRateId", value)
                   }
-                  className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
                 >
-                  {taxRates.map((rate) => (
-                    <option key={rate.id} value={rate.id}>
-                      {rate.name} ({rate.rate}%)
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="IVA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {taxRates.map((rate) => (
+                      <SelectItem key={rate.id} value={rate.id}>
+                        {rate.name} ({rate.rate}%)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Deductible */}
               <div className="col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">
+                <Label className="text-xs text-gray-500 mb-1">
                   Deducibile
-                </label>
-                <label className="flex items-center gap-1 mt-1">
-                  <input
-                    type="checkbox"
+                </Label>
+                <div className="flex items-center gap-1 mt-1">
+                  <Checkbox
                     checked={line.deductible}
-                    onChange={(e) =>
-                      updateLine(index, "deductible", e.target.checked)
+                    onCheckedChange={(checked) =>
+                      updateLine(index, "deductible", checked === true)
                     }
-                    className="rounded"
                   />
-                  <span className="text-sm">Sì</span>
-                </label>
+                  <span className="text-sm">Si</span>
+                </div>
               </div>
 
               {/* Tax amount display + remove */}
               <div className="col-span-2 flex items-end gap-2">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <Label className="text-xs text-gray-500 mb-1">
                     IVA
-                  </label>
+                  </Label>
                   <span className="text-sm">
                     {(
                       (line.amount *
@@ -444,26 +481,29 @@ export default function PurchaseInvoiceForm({
                   </span>
                 </div>
                 {lines.length > 1 && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
                     onClick={() => removeLine(index)}
-                    className="text-red-600 hover:text-red-800 text-sm pb-0.5"
                   >
                     Rimuovi
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           ))}
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={addLine}
-          className="mt-3 text-sm text-blue-600 hover:text-blue-800"
+          className="mt-3"
         >
           + Aggiungi riga
-        </button>
+        </Button>
       </div>
 
       {/* Totals */}
@@ -484,34 +524,27 @@ export default function PurchaseInvoiceForm({
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Note
-        </label>
-        <textarea
+        <Label className="mb-1">Note</Label>
+        <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full border border-gray-300 rounded-md px-3 py-2"
           placeholder="Note aggiuntive..."
         />
       </div>
 
       {/* Submit */}
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-        >
-          {saving ? "Salvataggio..." : "Registra fattura"}
-        </button>
-        <button
+        <Button type="submit" disabled={saving}>
+          {saving ? "Salvataggio..." : "Salva Acquisto"}
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push("/acquisti")}
-          className="border border-gray-300 px-6 py-2 rounded-md hover:bg-gray-50"
         >
           Annulla
-        </button>
+        </Button>
       </div>
     </form>
   );

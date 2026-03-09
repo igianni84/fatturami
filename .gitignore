@@ -43,3 +43,11 @@ yarn-error.log*
 
 # uploads
 /uploads
+
+# source data (import originali)
+/INCASSI/
+/SPESE/
+
+# misc project files
+.last-branch
+ralph.sh

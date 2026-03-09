@@ -2,12 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChanges } from "@/lib/hooks/useUnsavedChanges";
 import {
   ClientOption,
   TaxRateOption,
   QuoteFormData,
   createQuote,
 } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LineItem {
   description: string;
@@ -28,6 +40,8 @@ function emptyLine(): LineItem {
 export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChanges(isDirty && !saving);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const [clientId, setClientId] = useState("");
@@ -69,6 +83,10 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
 
   function removeLine(index: number) {
     if (lines.length <= 1) return;
+    const line = lines[index];
+    if (line.description || line.unitPrice > 0) {
+      if (!window.confirm("Sei sicuro di voler rimuovere questa riga?")) return;
+    }
     setLines((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -112,57 +130,52 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+    <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="max-w-4xl space-y-6">
       {/* Header fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Client selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Cliente *
-          </label>
-          <select
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+          <Label className="mb-1">Cliente *</Label>
+          <Select
+            value={clientId || undefined}
+            onValueChange={(value) => setClientId(value)}
           >
-            <option value="">-- Seleziona cliente --</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona cliente..." />
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {fieldError("clientId") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("clientId")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("clientId")}</p>
           )}
         </div>
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data *
-          </label>
-          <input
+          <Label className="mb-1">Data *</Label>
+          <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
           />
           {fieldError("date") && (
-            <p className="text-red-600 text-sm mt-1">{fieldError("date")}</p>
+            <p className="text-sm text-destructive mt-1">{fieldError("date")}</p>
           )}
         </div>
 
         {/* Expiry Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data scadenza
-          </label>
-          <input
+          <Label className="mb-1">Data scadenza</Label>
+          <Input
             type="date"
             value={expiryDate}
             onChange={(e) => setExpiryDate(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
           />
         </div>
       </div>
@@ -171,7 +184,7 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
       <div>
         <h3 className="text-lg font-medium text-gray-800 mb-2">Righe</h3>
         {fieldError("lines") && (
-          <p className="text-red-600 text-sm mb-2">{fieldError("lines")}</p>
+          <p className="text-sm text-destructive mb-2">{fieldError("lines")}</p>
         )}
 
         <div className="space-y-3">
@@ -183,26 +196,26 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                 {/* Description */}
                 <div className="md:col-span-4">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Descrizione
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     value={line.description}
                     onChange={(e) =>
                       updateLine(index, "description", e.target.value)
                     }
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                     placeholder="Descrizione servizio/prodotto"
                   />
                 </div>
 
                 {/* Quantity */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Quantità
-                  </label>
-                  <input
+                  <Label className="text-xs text-gray-600 mb-1">
+                    Quantita
+                  </Label>
+                  <Input
                     type="number"
                     value={line.quantity}
                     onChange={(e) =>
@@ -210,16 +223,16 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Unit Price */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Prezzo unit.
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="number"
                     value={line.unitPrice}
                     onChange={(e) =>
@@ -227,45 +240,49 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Tax Rate */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">
+                  <Label className="text-xs text-gray-600 mb-1">
                     Aliquota IVA
-                  </label>
-                  <select
-                    value={line.taxRateId}
-                    onChange={(e) =>
-                      updateLine(index, "taxRateId", e.target.value)
+                  </Label>
+                  <Select
+                    value={line.taxRateId || undefined}
+                    onValueChange={(value) =>
+                      updateLine(index, "taxRateId", value)
                     }
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   >
-                    <option value="">-- IVA --</option>
-                    {taxRates.map((rate) => (
-                      <option key={rate.id} value={rate.id}>
-                        {rate.name} ({rate.rate}%)
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Seleziona aliquota..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {taxRates.map((rate) => (
+                        <SelectItem key={rate.id} value={rate.id}>
+                          {rate.name} ({rate.rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Remove button */}
                 <div className="md:col-span-2 flex items-end gap-2">
                   <span className="text-sm font-medium text-gray-700">
-                    € {formatCurrency(lineTotal(line))}
+                    &euro; {formatCurrency(lineTotal(line))}
                   </span>
                   {lines.length > 1 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
                       onClick={() => removeLine(index)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                      title="Rimuovi riga"
                     >
-                      ✕
-                    </button>
+                      Rimuovi
+                    </Button>
                   )}
                 </div>
               </div>
@@ -273,13 +290,14 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
           ))}
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={addLine}
-          className="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="mt-3"
         >
           + Aggiungi riga
-        </button>
+        </Button>
       </div>
 
       {/* Totals */}
@@ -288,15 +306,15 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
           <div className="w-64 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Imponibile:</span>
-              <span>€ {formatCurrency(totalSubtotal)}</span>
+              <span>&euro; {formatCurrency(totalSubtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">IVA:</span>
-              <span>€ {formatCurrency(totalTax)}</span>
+              <span>&euro; {formatCurrency(totalTax)}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t pt-1">
               <span>Totale:</span>
-              <span>€ {formatCurrency(totalAmount)}</span>
+              <span>&euro; {formatCurrency(totalAmount)}</span>
             </div>
           </div>
         </div>
@@ -304,34 +322,27 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Note
-        </label>
-        <textarea
+        <Label className="mb-1">Note</Label>
+        <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full border border-gray-300 rounded px-3 py-2"
           placeholder="Note aggiuntive..."
         />
       </div>
 
       {/* Actions */}
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={saving}>
           {saving ? "Salvataggio..." : "Salva Preventivo"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push("/preventivi")}
-          className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50"
         >
           Annulla
-        </button>
+        </Button>
       </div>
     </form>
   );

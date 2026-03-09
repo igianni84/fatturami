@@ -30,6 +30,7 @@ export interface PDFTranslations {
   of: string;
   creditNoteRef: string;
   expiryDate: string;
+  paidAt: string;
 }
 
 const translations: Record<PDFLanguage, PDFTranslations> = {
@@ -63,6 +64,7 @@ const translations: Record<PDFLanguage, PDFTranslations> = {
     of: "de",
     creditNoteRef: "Factura de referencia",
     expiryDate: "Fecha de validez",
+    paidAt: "Fecha de Pago",
   },
   IT: {
     invoice: "Fattura",
@@ -94,6 +96,7 @@ const translations: Record<PDFLanguage, PDFTranslations> = {
     of: "di",
     creditNoteRef: "Fattura di riferimento",
     expiryDate: "Data di validit\u00e0",
+    paidAt: "Data di Pagamento",
   },
   EN: {
     invoice: "Invoice",
@@ -125,6 +128,7 @@ const translations: Record<PDFLanguage, PDFTranslations> = {
     of: "of",
     creditNoteRef: "Reference Invoice",
     expiryDate: "Valid Until",
+    paidAt: "Payment Date",
   },
 };
 

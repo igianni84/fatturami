@@ -65,18 +65,74 @@ function getPeriodRange(period: string): { start: Date; end: Date } {
 
 export async function getDashboardData(period: string): Promise<DashboardData> {
   const { start, end } = getPeriodRange(period);
+  const currentYear = new Date().getFullYear();
+  const yearStart = new Date(currentYear, 0, 1);
+  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
 
-  // Revenue: sum of issued invoices (emessa, inviata, pagata) in the period
-  const invoices = await prisma.invoice.findMany({
-    where: {
-      date: { gte: start, lte: end },
-      status: { in: ["emessa", "inviata", "pagata"] },
-    },
-    include: {
-      lines: { include: { taxRate: true } },
-    },
-  });
+  // Execute all independent queries in parallel
+  const [
+    invoices,
+    purchaseInvoices,
+    expenseAggregate,
+    overdueCount,
+    recentInvoices,
+    recentPurchases,
+    yearInvoices,
+  ] = await Promise.all([
+    // Revenue invoices for the period
+    prisma.invoice.findMany({
+      where: {
+        date: { gte: start, lte: end },
+        status: { in: ["emessa", "inviata", "pagata"] },
+      },
+      include: { lines: { include: { taxRate: true } } },
+    }),
+    // Purchase invoices for the period
+    prisma.purchaseInvoice.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: { lines: { include: { taxRate: true } } },
+    }),
+    // Expense aggregate for the period
+    prisma.expense.aggregate({
+      where: { date: { gte: start, lte: end } },
+      _sum: { amount: true, taxAmount: true },
+    }),
+    // Overdue invoices count
+    prisma.invoice.count({
+      where: {
+        status: { in: ["emessa", "inviata"] },
+        dueDate: { lt: new Date() },
+      },
+    }),
+    // Recent invoices
+    prisma.invoice.findMany({
+      orderBy: { date: "desc" },
+      take: 5,
+      include: {
+        client: { select: { name: true } },
+        lines: { include: { taxRate: true } },
+      },
+    }),
+    // Recent purchases
+    prisma.purchaseInvoice.findMany({
+      orderBy: { date: "desc" },
+      take: 5,
+      include: {
+        supplier: { select: { name: true } },
+        lines: { include: { taxRate: true } },
+      },
+    }),
+    // Year invoices for chart
+    prisma.invoice.findMany({
+      where: {
+        date: { gte: yearStart, lte: yearEnd },
+        status: { in: ["emessa", "inviata", "pagata"] },
+      },
+      include: { lines: { include: { taxRate: true } } },
+    }),
+  ]);
 
+  // Calculate revenue
   const revenue = invoices.reduce((sum, inv) => {
     const invTotal = inv.lines.reduce((lineSum, line) => {
       const lineAmount = Number(line.quantity) * Number(line.unitPrice);
@@ -86,16 +142,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     return sum + invTotal;
   }, 0);
 
-  // Expenses: sum of purchase invoices + expenses in the period
-  const purchaseInvoices = await prisma.purchaseInvoice.findMany({
-    where: {
-      date: { gte: start, lte: end },
-    },
-    include: {
-      lines: { include: { taxRate: true } },
-    },
-  });
-
+  // Calculate expenses
   const purchaseTotal = purchaseInvoices.reduce((sum, pi) => {
     const piTotal = pi.lines.reduce((lineSum, line) => {
       const lineAmount = Number(line.amount);
@@ -105,13 +152,6 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     return sum + piTotal;
   }, 0);
 
-  const expenseAggregate = await prisma.expense.aggregate({
-    where: {
-      date: { gte: start, lte: end },
-    },
-    _sum: { amount: true, taxAmount: true },
-  });
-
   const expenseTotal =
     Number(expenseAggregate._sum.amount || 0) +
     Number(expenseAggregate._sum.taxAmount || 0);
@@ -119,33 +159,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
   const expenses = purchaseTotal + expenseTotal;
   const balance = revenue - expenses;
 
-  // Overdue invoices: emessa or inviata with dueDate in the past
-  const overdueCount = await prisma.invoice.count({
-    where: {
-      status: { in: ["emessa", "inviata"] },
-      dueDate: { lt: new Date() },
-    },
-  });
-
-  // Recent documents: last 5 invoices and purchases combined, sorted by date
-  const recentInvoices = await prisma.invoice.findMany({
-    orderBy: { date: "desc" },
-    take: 5,
-    include: {
-      client: { select: { name: true } },
-      lines: { include: { taxRate: true } },
-    },
-  });
-
-  const recentPurchases = await prisma.purchaseInvoice.findMany({
-    orderBy: { date: "desc" },
-    take: 5,
-    include: {
-      supplier: { select: { name: true } },
-      lines: { include: { taxRate: true } },
-    },
-  });
-
+  // Build recent documents
   const recentDocs: RecentDocument[] = [
     ...recentInvoices.map((inv) => ({
       id: inv.id,
@@ -177,21 +191,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
 
-  // Monthly revenue for current year chart
-  const currentYear = new Date().getFullYear();
-  const yearStart = new Date(currentYear, 0, 1);
-  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
-
-  const yearInvoices = await prisma.invoice.findMany({
-    where: {
-      date: { gte: yearStart, lte: yearEnd },
-      status: { in: ["emessa", "inviata", "pagata"] },
-    },
-    include: {
-      lines: { include: { taxRate: true } },
-    },
-  });
-
+  // Build monthly revenue chart
   const monthNames = [
     "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
     "Lug", "Ago", "Set", "Ott", "Nov", "Dic",

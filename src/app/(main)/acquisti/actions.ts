@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ExpenseCategory, PurchaseInvoiceStatus, Prisma } from "@prisma/client";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { validateFileType } from "@/lib/file-validation";
 
 // --- Types ---
 
@@ -75,7 +77,16 @@ export async function getTaxRates(): Promise<TaxRateOption[]> {
 
 // --- Upload file ---
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 async function uploadFile(file: File): Promise<string> {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("File troppo grande. Massimo 10MB consentiti.");
+  }
+  const fileValidation = await validateFileType(file);
+  if (!fileValidation.valid) {
+    throw new Error(fileValidation.error);
+  }
   const uploadsDir = join(process.cwd(), "uploads", "acquisti");
   await mkdir(uploadsDir, { recursive: true });
 
@@ -97,12 +108,29 @@ export async function createPurchaseInvoice(
   data: PurchaseInvoiceFormData,
   file?: File | null
 ): Promise<PurchaseInvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const result = purchaseInvoiceSchema.safeParse(data);
 
   if (!result.success) {
     return {
       success: false,
       errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  // Validate supplier exists and is not soft-deleted
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: result.data.supplierId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!supplier) {
+    return {
+      success: false,
+      errors: { supplierId: ["Fornitore non trovato o non più attivo"] },
     };
   }
 
@@ -233,12 +261,97 @@ export async function getPurchaseInvoices(params: {
   return { purchaseInvoices: result, totalCount };
 }
 
+// --- Fetch single purchase invoice ---
+
+export interface PurchaseInvoiceDetail {
+  id: string;
+  supplierName: string;
+  number: string;
+  date: string;
+  category: string;
+  status: string;
+  filePath: string | null;
+  notes: string;
+  lines: {
+    id: string;
+    description: string;
+    amount: number;
+    taxRate: { name: string; rate: number };
+    deductible: boolean;
+  }[];
+}
+
+export async function getPurchaseInvoice(
+  id: string
+): Promise<PurchaseInvoiceDetail | null> {
+  const pi = await prisma.purchaseInvoice.findUnique({
+    where: { id },
+    include: {
+      supplier: { select: { name: true } },
+      lines: {
+        include: { taxRate: { select: { name: true, rate: true } } },
+      },
+    },
+  });
+
+  if (!pi) return null;
+
+  return {
+    id: pi.id,
+    supplierName: pi.supplier.name,
+    number: pi.number,
+    date: pi.date.toISOString().split("T")[0],
+    category: pi.category,
+    status: pi.status,
+    filePath: pi.filePath,
+    notes: pi.notes,
+    lines: pi.lines.map((line) => ({
+      id: line.id,
+      description: line.description,
+      amount: Number(line.amount),
+      taxRate: {
+        name: line.taxRate.name,
+        rate: Number(line.taxRate.rate),
+      },
+      deductible: line.deductible,
+    })),
+  };
+}
+
+// --- Delete purchase invoice ---
+
+export async function deletePurchaseInvoice(
+  id: string
+): Promise<PurchaseInvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
+  const pi = await prisma.purchaseInvoice.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!pi) {
+    return { success: false, message: "Fattura di acquisto non trovata" };
+  }
+
+  await prisma.purchaseInvoice.delete({ where: { id } });
+  return { success: true, message: "Fattura di acquisto eliminata" };
+}
+
 // --- Update purchase invoice status ---
 
 export async function updatePurchaseInvoiceStatus(
   id: string,
   newStatus: string
 ): Promise<PurchaseInvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, message: "Non autenticato" };
+  }
+
   const validStatuses: string[] = Object.values(PurchaseInvoiceStatus);
   if (!validStatuses.includes(newStatus)) {
     return { success: false, message: "Stato non valido" };

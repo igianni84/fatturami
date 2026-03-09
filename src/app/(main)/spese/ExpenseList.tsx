@@ -1,9 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
-import { ExpenseListItem } from "./actions";
+import { ExpenseListItem, deleteExpense } from "./actions";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 
 interface ExpenseListProps {
   expenses: ExpenseListItem[];
@@ -59,6 +71,7 @@ export default function ExpenseList({
 }: ExpenseListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [deleteConfirm, setDeleteConfirm] = useState<ExpenseListItem | null>(null);
 
   const navigateTo = (params: Record<string, string | undefined>) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -73,6 +86,16 @@ export default function ExpenseList({
       sp.set("page", "1");
     }
     router.push(`/spese?${sp.toString()}`);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    const result = await deleteExpense(deleteConfirm.id);
+    setDeleteConfirm(null);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'eliminazione");
+    }
+    router.refresh();
   };
 
   const columns: Column<ExpenseListItem>[] = [
@@ -96,15 +119,16 @@ export default function ExpenseList({
       key: "deductible",
       header: "Deducibile",
       render: (item) => (
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+        <Badge
+          variant="outline"
+          className={
             item.deductible
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}
+              ? "border-green-300 bg-green-100 text-green-800"
+              : "border-red-300 bg-red-100 text-red-800"
+          }
         >
           {item.deductible ? "Sì" : "No"}
-        </span>
+        </Badge>
       ),
     },
   ];
@@ -113,12 +137,9 @@ export default function ExpenseList({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Spese</h1>
-        <Link
-          href="/spese/nuova"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-        >
-          + Nuova Spesa
-        </Link>
+        <Button asChild>
+          <Link href="/spese/nuova">+ Nuova Spesa</Link>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -126,17 +147,14 @@ export default function ExpenseList({
         {/* Deductible filter */}
         <div className="flex gap-2 flex-wrap">
           {deductibleOptions.map((opt) => (
-            <button
+            <Button
               key={opt.value}
+              variant={currentDeductible === opt.value ? "default" : "outline"}
+              size="sm"
               onClick={() => navigateTo({ deductible: opt.value, page: "1" })}
-              className={`px-3 py-1.5 text-sm rounded-md border ${
-                currentDeductible === opt.value
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              }`}
             >
               {opt.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -151,7 +169,7 @@ export default function ExpenseList({
               onChange={(e) =>
                 navigateTo({ category: e.target.value, page: "1" })
               }
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md"
+              className="h-8 rounded-md border border-input bg-background px-3 text-sm"
             >
               {allCategories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -171,7 +189,7 @@ export default function ExpenseList({
               onChange={(e) =>
                 navigateTo({ dateFrom: e.target.value, page: "1" })
               }
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md"
+              className="h-8 rounded-md border border-input bg-background px-3 text-sm"
             />
           </div>
 
@@ -185,14 +203,14 @@ export default function ExpenseList({
               onChange={(e) =>
                 navigateTo({ dateTo: e.target.value, page: "1" })
               }
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md"
+              className="h-8 rounded-md border border-input bg-background px-3 text-sm"
             />
           </div>
         </div>
       </div>
 
       {/* Total amount */}
-      <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+      <div className="mb-4 p-3 bg-muted rounded-md border">
         <span className="text-sm text-gray-600">Totale filtrato: </span>
         <span className="text-sm font-semibold text-gray-900">
           € {totalAmount.toLocaleString("it-IT", {
@@ -211,7 +229,41 @@ export default function ExpenseList({
         totalCount={totalCount}
         page={page}
         pageSize={10}
+        emptyMessage="Nessuna spesa trovata"
         onPageChange={(newPage) => navigateTo({ page: String(newPage) })}
+        actions={(item) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Azioni spesa">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirm(item)}
+              >
+                Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Conferma eliminazione"
+        description={
+          <>
+            Sei sicuro di voler eliminare la spesa{" "}
+            <strong>{deleteConfirm?.description}</strong>? Questa azione non
+            può essere annullata.
+          </>
+        }
+        confirmLabel="Elimina"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );
