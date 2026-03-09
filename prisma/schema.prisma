@@ -63,7 +63,7 @@ model Company {
   id         String   @id @default(cuid())
   name       String
   nif        String
-  address    String   @db.Text
+  address    String   @db.VarChar(1000)
   city       String   @default("")
   postalCode String   @default("")
   country    String   @default("ES")
@@ -80,14 +80,14 @@ model Client {
   name            String
   vatNumber       String     @default("")
   fiscalCode      String     @default("")
-  address         String     @default("") @db.Text
+  address         String     @default("") @db.VarChar(1000)
   city            String     @default("")
   postalCode      String     @default("")
   country         String     @default("")
   email           String     @default("")
   currency        String     @default("EUR")
   vatRegime       VatRegime  @default(nazionale)
-  notes           String     @default("") @db.Text
+  notes           String     @default("") @db.VarChar(5000)
   viesValid       Boolean?
   viesValidatedAt DateTime?
   deletedAt       DateTime?
@@ -102,7 +102,7 @@ model Supplier {
   id              String          @id @default(cuid())
   name            String
   vatNumber       String          @default("")
-  address         String          @default("") @db.Text
+  address         String          @default("") @db.VarChar(1000)
   city            String          @default("")
   postalCode      String          @default("")
   country         String          @default("")
@@ -137,8 +137,8 @@ model Invoice {
   status       InvoiceStatus @default(bozza)
   currency     String        @default("EUR")
   exchangeRate Decimal       @default(1)
-  disclaimer   String        @default("") @db.Text
-  notes        String        @default("") @db.Text
+  disclaimer   String        @default("") @db.VarChar(2000)
+  notes        String        @default("") @db.VarChar(5000)
   paidAt       DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -170,7 +170,7 @@ model CreditNote {
   number    String   @unique
   invoiceId String
   date      DateTime
-  notes     String   @default("") @db.Text
+  notes     String   @default("") @db.VarChar(5000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -201,7 +201,7 @@ model Quote {
   date       DateTime
   expiryDate DateTime?
   status     QuoteStatus @default(bozza)
-  notes      String      @default("") @db.Text
+  notes      String      @default("") @db.VarChar(5000)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -234,7 +234,7 @@ model PurchaseInvoice {
   category   ExpenseCategory       @default(altro)
   status     PurchaseInvoiceStatus @default(registrata)
   filePath   String?
-  notes      String                @default("") @db.Text
+  notes      String                @default("") @db.VarChar(5000)
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
 
