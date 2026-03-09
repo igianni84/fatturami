@@ -88,7 +88,7 @@ export async function getTaxRatesForInvoice(): Promise<TaxRateOption[]> {
 
 async function generateInvoiceNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = `INV-${year}-`;
+  const prefix = `FTT-${year}-`;
 
   const lastInvoice = await prisma.invoice.findFirst({
     where: { number: { startsWith: prefix } },
