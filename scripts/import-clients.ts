@@ -102,7 +102,7 @@ async function main() {
     // Check if client already exists (by name)
     const existing = await prisma.client.findFirst({
       where: {
-        name: { equals: name, mode: "insensitive" },
+        name: { equals: name },
         deletedAt: null,
       },
     });

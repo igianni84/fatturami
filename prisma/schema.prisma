@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -63,7 +63,7 @@ model Company {
   id         String   @id @default(cuid())
   name       String
   nif        String
-  address    String
+  address    String   @db.Text
   city       String   @default("")
   postalCode String   @default("")
   country    String   @default("ES")
@@ -80,14 +80,14 @@ model Client {
   name            String
   vatNumber       String     @default("")
   fiscalCode      String     @default("")
-  address         String     @default("")
+  address         String     @default("") @db.Text
   city            String     @default("")
   postalCode      String     @default("")
   country         String     @default("")
   email           String     @default("")
   currency        String     @default("EUR")
   vatRegime       VatRegime  @default(nazionale)
-  notes           String     @default("")
+  notes           String     @default("") @db.Text
   viesValid       Boolean?
   viesValidatedAt DateTime?
   deletedAt       DateTime?
@@ -102,7 +102,7 @@ model Supplier {
   id              String          @id @default(cuid())
   name            String
   vatNumber       String          @default("")
-  address         String          @default("")
+  address         String          @default("") @db.Text
   city            String          @default("")
   postalCode      String          @default("")
   country         String          @default("")
@@ -137,8 +137,8 @@ model Invoice {
   status       InvoiceStatus @default(bozza)
   currency     String        @default("EUR")
   exchangeRate Decimal       @default(1)
-  disclaimer   String        @default("")
-  notes        String        @default("")
+  disclaimer   String        @default("") @db.Text
+  notes        String        @default("") @db.Text
   paidAt       DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -154,7 +154,7 @@ model Invoice {
 model InvoiceLine {
   id          String  @id @default(cuid())
   invoiceId   String
-  description String
+  description String  @db.Text
   quantity    Decimal
   unitPrice   Decimal
   taxRateId   String
@@ -170,7 +170,7 @@ model CreditNote {
   number    String   @unique
   invoiceId String
   date      DateTime
-  notes     String   @default("")
+  notes     String   @default("") @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -183,7 +183,7 @@ model CreditNote {
 model CreditNoteLine {
   id           String  @id @default(cuid())
   creditNoteId String
-  description  String
+  description  String  @db.Text
   quantity     Decimal
   unitPrice    Decimal
   taxRateId    String
@@ -201,7 +201,7 @@ model Quote {
   date       DateTime
   expiryDate DateTime?
   status     QuoteStatus @default(bozza)
-  notes      String      @default("")
+  notes      String      @default("") @db.Text
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -215,7 +215,7 @@ model Quote {
 model QuoteLine {
   id          String  @id @default(cuid())
   quoteId     String
-  description String
+  description String  @db.Text
   quantity    Decimal
   unitPrice   Decimal
   taxRateId   String
@@ -234,7 +234,7 @@ model PurchaseInvoice {
   category   ExpenseCategory       @default(altro)
   status     PurchaseInvoiceStatus @default(registrata)
   filePath   String?
-  notes      String                @default("")
+  notes      String                @default("") @db.Text
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
 
@@ -248,7 +248,7 @@ model PurchaseInvoice {
 model PurchaseInvoiceLine {
   id                String  @id @default(cuid())
   purchaseInvoiceId String
-  description       String
+  description       String  @db.Text
   amount            Decimal
   taxRateId         String
   deductible        Boolean @default(true)
@@ -262,7 +262,7 @@ model PurchaseInvoiceLine {
 model Expense {
   id          String          @id @default(cuid())
   date        DateTime
-  description String
+  description String          @db.Text
   amount      Decimal
   category    ExpenseCategory @default(altro)
   taxAmount   Decimal         @default(0)
@@ -275,7 +275,7 @@ model Expense {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String
+  password  String   @db.VarChar(255)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

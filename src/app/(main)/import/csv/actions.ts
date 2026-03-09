@@ -141,7 +141,7 @@ async function findOrCreateClient(
   if (vatNumber) {
     existing = await prisma.client.findFirst({
       where: {
-        vatNumber: { contains: vatNumber.trim(), mode: "insensitive" },
+        vatNumber: { contains: vatNumber.trim() },
         deletedAt: null,
       },
     });
@@ -149,7 +149,7 @@ async function findOrCreateClient(
   if (!existing) {
     existing = await prisma.client.findFirst({
       where: {
-        name: { equals: name.trim(), mode: "insensitive" },
+        name: { equals: name.trim() },
         deletedAt: null,
       },
     });
@@ -192,7 +192,7 @@ async function findOrCreateSupplier(
   if (vatNumber) {
     existing = await prisma.supplier.findFirst({
       where: {
-        vatNumber: { contains: vatNumber.trim(), mode: "insensitive" },
+        vatNumber: { contains: vatNumber.trim() },
         deletedAt: null,
       },
     });
@@ -200,7 +200,7 @@ async function findOrCreateSupplier(
   if (!existing) {
     existing = await prisma.supplier.findFirst({
       where: {
-        name: { equals: name.trim(), mode: "insensitive" },
+        name: { equals: name.trim() },
         deletedAt: null,
       },
     });

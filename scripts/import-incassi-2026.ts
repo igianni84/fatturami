@@ -32,7 +32,7 @@ async function main() {
 
   // Crurated Limited (GB - extraUE)
   let crurated = await prisma.client.findFirst({
-    where: { name: { contains: "Crurated", mode: "insensitive" }, deletedAt: null },
+    where: { name: { contains: "Crurated" }, deletedAt: null },
   });
   if (!crurated) {
     crurated = await prisma.client.create({
@@ -57,7 +57,7 @@ async function main() {
 
   // Innovedge s.r.l. (IT - intraUE con P.IVA VIES)
   let innovedge = await prisma.client.findFirst({
-    where: { name: { contains: "Innovedge", mode: "insensitive" }, deletedAt: null },
+    where: { name: { contains: "Innovedge" }, deletedAt: null },
   });
   if (!innovedge) {
     innovedge = await prisma.client.create({
@@ -82,13 +82,13 @@ async function main() {
 
   // Lookup existing clients
   const centerHealth = await prisma.client.findFirst({
-    where: { name: { contains: "Center Health Tooth", mode: "insensitive" }, deletedAt: null },
+    where: { name: { contains: "Center Health Tooth" }, deletedAt: null },
   });
   const tenuta = await prisma.client.findFirst({
-    where: { name: { contains: "Tenuta Ariello", mode: "insensitive" }, deletedAt: null },
+    where: { name: { contains: "Tenuta Ariello" }, deletedAt: null },
   });
   const barberia = await prisma.client.findFirst({
-    where: { name: { contains: "Barberia 95", mode: "insensitive" }, deletedAt: null },
+    where: { name: { contains: "Barberia 95" }, deletedAt: null },
   });
 
   if (!centerHealth) throw new Error("Center Health Tooth non trovato nel DB!");

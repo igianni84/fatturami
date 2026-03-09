@@ -210,7 +210,6 @@ export async function POST(request: NextRequest) {
           deletedAt: null,
           vatNumber: {
             contains: normalizedVat,
-            mode: "insensitive",
           },
         },
         select: { id: true, name: true },

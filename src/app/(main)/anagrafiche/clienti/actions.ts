@@ -31,8 +31,8 @@ export async function getClients(
     ...(search
       ? {
           OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { vatNumber: { contains: search, mode: "insensitive" as const } },
+            { name: { contains: search } },
+            { vatNumber: { contains: search } },
           ],
         }
       : {}),

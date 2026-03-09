@@ -83,7 +83,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
           if (item.supplierVatNumber) {
             existing = await prisma.supplier.findFirst({
               where: {
-                vatNumber: { contains: item.supplierVatNumber.trim(), mode: "insensitive" },
+                vatNumber: { contains: item.supplierVatNumber.trim() },
                 deletedAt: null,
               },
             });
@@ -91,7 +91,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
           if (!existing && item.supplierName) {
             existing = await prisma.supplier.findFirst({
               where: {
-                name: { equals: item.supplierName.trim(), mode: "insensitive" },
+                name: { equals: item.supplierName.trim() },
                 deletedAt: null,
               },
             });

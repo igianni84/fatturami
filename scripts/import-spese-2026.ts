@@ -39,7 +39,7 @@ async function findOrCreateSupplier(
   extra: { address?: string; city?: string; email?: string } = {}
 ): Promise<string> {
   let supplier = await prisma.supplier.findFirst({
-    where: { name: { equals: name, mode: "insensitive" }, deletedAt: null },
+    where: { name: { equals: name }, deletedAt: null },
   });
   if (supplier) {
     console.log(`   -> ${name} gia' presente (id: ${supplier.id})`);
