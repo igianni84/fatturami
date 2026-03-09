@@ -23,6 +23,7 @@ const statusLabels: Record<string, string> = {
   bozza: "Bozza",
   emessa: "Emessa",
   inviata: "Inviata",
+  parzialmente_pagata: "Parzialmente pagata",
   pagata: "Pagata",
   scaduta: "Scaduta",
 };
@@ -77,7 +78,7 @@ export default async function InvoiceDetailPage({
               <Link href={`/fatture/${invoice.id}/modifica`}>Modifica</Link>
             </Button>
           )}
-          {(invoice.status === "emessa" || invoice.status === "inviata" || invoice.status === "pagata") && (
+          {(["emessa", "inviata", "parzialmente_pagata", "pagata"].includes(invoice.status)) && (
             <Button variant="destructive" asChild>
               <Link href={`/note-credito/nuova/${invoice.id}`}>
                 Crea nota di credito
@@ -131,6 +132,24 @@ export default async function InvoiceDetailPage({
                   </Badge>
                 </dd>
               </div>
+              {invoice.totalPaid > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Totale pagato:</dt>
+                    <dd className="font-medium text-green-700">
+                      {formatCurrency(invoice.totalPaid, invoice.currency)}
+                    </dd>
+                  </div>
+                  {invoice.remaining > 0.01 && (
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Saldo rimanente:</dt>
+                      <dd className="font-medium text-orange-700">
+                        {formatCurrency(invoice.remaining, invoice.currency)}
+                      </dd>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between">
                 <dt className="text-gray-500">Valuta:</dt>
                 <dd>{invoice.currency}</dd>
@@ -245,6 +264,59 @@ export default async function InvoiceDetailPage({
           </TableFooter>
         </Table>
       </Card>
+
+      {/* Payment history */}
+      {invoice.payments.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold uppercase text-muted-foreground">
+              Storico Pagamenti
+            </CardTitle>
+          </CardHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Metodo</TableHead>
+                <TableHead>Note</TableHead>
+                <TableHead className="text-right">Importo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoice.payments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell>{payment.date}</TableCell>
+                  <TableCell>{payment.method || "-"}</TableCell>
+                  <TableCell>{payment.notes || "-"}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(payment.amount, invoice.currency)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={3} className="text-right font-semibold">
+                  Totale pagato:
+                </TableCell>
+                <TableCell className="text-right font-bold text-green-700">
+                  {formatCurrency(invoice.totalPaid, invoice.currency)}
+                </TableCell>
+              </TableRow>
+              {invoice.remaining > 0.01 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-semibold">
+                    Saldo rimanente:
+                  </TableCell>
+                  <TableCell className="text-right font-bold text-orange-700">
+                    {formatCurrency(invoice.remaining, invoice.currency)}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableFooter>
+          </Table>
+        </Card>
+      )}
 
       {/* Disclaimer */}
       {invoice.disclaimer && (

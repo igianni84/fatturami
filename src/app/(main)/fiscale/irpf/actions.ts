@@ -113,7 +113,7 @@ export async function getIRPFReport(year: number): Promise<IRPFReportData> {
     const invoices = await prisma.invoice.findMany({
       where: {
         date: { gte: start, lte: end },
-        status: { in: ["emessa", "inviata", "pagata"] },
+        status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       },
       include: {
         lines: { include: { taxRate: true } },

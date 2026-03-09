@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
-import { InvoiceListItem, updateInvoiceStatus, deleteInvoice } from "./actions";
+import { InvoiceListItem, updateInvoiceStatus, deleteInvoice, addPayment } from "./actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { PaymentDateDialog } from "@/components/PaymentDateDialog";
+import { PaymentDialog } from "@/components/PaymentDialog";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { getStatusColor } from "@/lib/status-colors";
@@ -31,19 +31,23 @@ const statusLabels: Record<string, string> = {
   bozza: "Bozza",
   emessa: "Emessa",
   inviata: "Inviata",
+  parzialmente_pagata: "Parzialmente pagata",
   pagata: "Pagata",
   scaduta: "Scaduta",
 };
 
 const statusTransitions: Record<string, string[]> = {
   bozza: ["emessa"],
-  emessa: ["inviata", "pagata", "scaduta"],
-  inviata: ["pagata", "scaduta"],
+  emessa: ["inviata", "scaduta"],
+  inviata: ["scaduta"],
+  parzialmente_pagata: ["scaduta"],
   pagata: [],
-  scaduta: ["pagata"],
+  scaduta: [],
 };
 
-const allStatuses = ["tutti", "bozza", "emessa", "inviata", "pagata", "scaduta"];
+const payableStatuses = ["emessa", "inviata", "parzialmente_pagata", "scaduta"];
+
+const allStatuses = ["tutti", "bozza", "emessa", "inviata", "parzialmente_pagata", "pagata", "scaduta"];
 
 function formatCurrency(amount: number, currency: string): string {
   const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
@@ -81,21 +85,29 @@ export default function InvoiceList({
   };
 
   const handleStatusChange = async (invoiceId: string, newStatus: string) => {
-    if (newStatus === "pagata") {
-      const inv = invoices.find((i) => i.id === invoiceId);
-      setPaymentConfirm(inv || null);
-      return;
-    }
     await updateInvoiceStatus(invoiceId, newStatus);
     router.refresh();
   };
 
-  const handlePaymentConfirm = async (paidAt: string) => {
+  const handlePaymentConfirm = async (data: {
+    amount: number;
+    date: string;
+    method: string;
+    notes: string;
+  }) => {
     if (!paymentConfirm) return;
-    const result = await updateInvoiceStatus(paymentConfirm.id, "pagata", paidAt);
+    const result = await addPayment({
+      invoiceId: paymentConfirm.id,
+      amount: data.amount,
+      date: data.date,
+      method: data.method,
+      notes: data.notes,
+    });
     setPaymentConfirm(null);
     if (!result.success) {
-      toast.error(result.message || "Errore durante l'aggiornamento");
+      toast.error(result.message || "Errore durante la registrazione del pagamento");
+    } else {
+      toast.success(result.message);
     }
     router.refresh();
   };
@@ -190,6 +202,13 @@ export default function InvoiceList({
                   ))}
                 </>
               )}
+              {payableStatuses.includes(item.status) && (
+                <DropdownMenuItem
+                  onClick={() => setPaymentConfirm(item)}
+                >
+                  Registra pagamento
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
@@ -212,11 +231,14 @@ export default function InvoiceList({
         onConfirm={handleDelete}
       />
 
-      <PaymentDateDialog
+      <PaymentDialog
         open={!!paymentConfirm}
         onOpenChange={(open) => !open && setPaymentConfirm(null)}
         onConfirm={handlePaymentConfirm}
         invoiceNumber={paymentConfirm?.number}
+        invoiceTotal={paymentConfirm?.total ?? 0}
+        totalPaid={paymentConfirm?.totalPaid ?? 0}
+        currency={paymentConfirm?.currency ?? "EUR"}
       />
     </div>
   );

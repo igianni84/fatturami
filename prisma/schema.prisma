@@ -19,6 +19,7 @@ enum InvoiceStatus {
   bozza
   emessa
   inviata
+  parzialmente_pagata
   pagata
   scaduta
 }
@@ -146,9 +147,24 @@ model Invoice {
   client      Client        @relation(fields: [clientId], references: [id])
   lines       InvoiceLine[]
   creditNotes CreditNote[]
+  payments    Payment[]
 
   @@index([clientId])
   @@index([status])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  amount    Decimal
+  date      DateTime
+  method    String   @default("") @db.VarChar(100)
+  notes     String   @default("") @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 model InvoiceLine {

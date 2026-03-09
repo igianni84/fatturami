@@ -83,7 +83,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     prisma.invoice.findMany({
       where: {
         date: { gte: start, lte: end },
-        status: { in: ["emessa", "inviata", "pagata"] },
+        status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       },
       include: { lines: { include: { taxRate: true } } },
     }),
@@ -100,7 +100,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     // Overdue invoices count
     prisma.invoice.count({
       where: {
-        status: { in: ["emessa", "inviata"] },
+        status: { in: ["emessa", "inviata", "parzialmente_pagata"] },
         dueDate: { lt: new Date() },
       },
     }),
@@ -126,7 +126,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     prisma.invoice.findMany({
       where: {
         date: { gte: yearStart, lte: yearEnd },
-        status: { in: ["emessa", "inviata", "pagata"] },
+        status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       },
       include: { lines: { include: { taxRate: true } } },
     }),

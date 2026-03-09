@@ -43,7 +43,7 @@ export async function getVATReport(year: number, quarter: number): Promise<VATRe
   const domesticInvoices = await prisma.invoice.findMany({
     where: {
       date: { gte: start, lte: end },
-      status: { in: ["emessa", "inviata", "pagata"] },
+      status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       client: { vatRegime: "nazionale" },
     },
     include: {
@@ -65,7 +65,7 @@ export async function getVATReport(year: number, quarter: number): Promise<VATRe
   const intraEUInvoices = await prisma.invoice.findMany({
     where: {
       date: { gte: start, lte: end },
-      status: { in: ["emessa", "inviata", "pagata"] },
+      status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       client: { vatRegime: "intraUE" },
     },
     include: {

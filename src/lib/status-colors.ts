@@ -13,6 +13,9 @@ const STATUS_COLORS: Record<string, string> = {
   inviato: "border-blue-300 bg-blue-100 text-blue-800",
   registrata: "border-blue-300 bg-blue-100 text-blue-800",
 
+  // Partial payment — orange
+  parzialmente_pagata: "border-orange-300 bg-orange-100 text-orange-800",
+
   // Positive completion — green
   pagata: "border-green-300 bg-green-100 text-green-800",
   accettato: "border-green-300 bg-green-100 text-green-800",

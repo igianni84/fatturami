@@ -210,6 +210,7 @@ export interface InvoiceListItem {
   date: string;
   dueDate: string | null;
   total: number;
+  totalPaid: number;
   currency: string;
   status: string;
 }
@@ -246,6 +247,7 @@ export async function getInvoices(params: {
         lines: {
           include: { taxRate: { select: { rate: true } } },
         },
+        payments: { select: { amount: true } },
       },
     }),
     prisma.invoice.count({ where }),
@@ -258,6 +260,11 @@ export async function getInvoices(params: {
       return sum + subtotal + tax;
     }, 0);
 
+    const totalPaid = inv.payments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    );
+
     return {
       id: inv.id,
       number: inv.number,
@@ -265,6 +272,7 @@ export async function getInvoices(params: {
       date: inv.date.toISOString().split("T")[0],
       dueDate: inv.dueDate ? inv.dueDate.toISOString().split("T")[0] : null,
       total,
+      totalPaid,
       currency: inv.currency,
       status: inv.status,
     };
@@ -277,15 +285,14 @@ export async function getInvoices(params: {
 
 export async function updateInvoiceStatus(
   invoiceId: string,
-  newStatus: string,
-  paidAt?: string
+  newStatus: string
 ): Promise<InvoiceActionResult> {
   const user = await getCurrentUser();
   if (!user) {
     return { success: false, message: "Non autenticato" };
   }
 
-  const validStatuses = ["bozza", "emessa", "inviata", "pagata", "scaduta"];
+  const validStatuses = ["bozza", "emessa", "inviata", "parzialmente_pagata", "pagata", "scaduta"];
   if (!validStatuses.includes(newStatus)) {
     return { success: false, message: "Stato non valido" };
   }
@@ -293,8 +300,9 @@ export async function updateInvoiceStatus(
   // Validate state transitions server-side
   const statusTransitions: Record<string, string[]> = {
     bozza: ["emessa"],
-    emessa: ["inviata", "pagata", "scaduta"],
-    inviata: ["pagata", "scaduta"],
+    emessa: ["inviata", "scaduta"],
+    inviata: ["scaduta"],
+    parzialmente_pagata: ["scaduta"],
     pagata: [],
     scaduta: [],
   };
@@ -316,22 +324,10 @@ export async function updateInvoiceStatus(
     };
   }
 
-  let paidAtDate: Date | undefined;
-  if (newStatus === "pagata") {
-    if (!paidAt) {
-      return { success: false, message: "La data di pagamento è obbligatoria" };
-    }
-    paidAtDate = new Date(paidAt);
-    if (isNaN(paidAtDate.getTime())) {
-      return { success: false, message: "Data di pagamento non valida" };
-    }
-  }
-
   await prisma.invoice.update({
     where: { id: invoiceId },
     data: {
       status: newStatus as InvoiceStatus,
-      ...(paidAtDate ? { paidAt: paidAtDate } : {}),
     },
   });
 
@@ -392,6 +388,15 @@ export interface InvoiceDetail {
     unitPrice: number;
     taxRate: { name: string; rate: number };
   }[];
+  payments: {
+    id: string;
+    amount: number;
+    date: string;
+    method: string;
+    notes: string;
+  }[];
+  totalPaid: number;
+  remaining: number;
 }
 
 export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
@@ -410,10 +415,25 @@ export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
       lines: {
         include: { taxRate: { select: { name: true, rate: true } } },
       },
+      payments: {
+        select: { id: true, amount: true, date: true, method: true, notes: true },
+        orderBy: { date: "asc" as const },
+      },
     },
   });
 
   if (!invoice) return null;
+
+  const totalPaid = invoice.payments.reduce(
+    (sum, p) => sum + Number(p.amount),
+    0
+  );
+
+  const invoiceTotal = invoice.lines.reduce((sum, line) => {
+    const subtotal = Number(line.quantity) * Number(line.unitPrice);
+    const tax = subtotal * (Number(line.taxRate.rate) / 100);
+    return sum + subtotal + tax;
+  }, 0);
 
   return {
     id: invoice.id,
@@ -443,6 +463,15 @@ export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
         rate: Number(line.taxRate.rate),
       },
     })),
+    payments: invoice.payments.map((p) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      date: p.date.toISOString().split("T")[0],
+      method: p.method,
+      notes: p.notes,
+    })),
+    totalPaid,
+    remaining: invoiceTotal - totalPaid,
   };
 }
 
@@ -532,4 +561,167 @@ export async function convertQuoteToInvoice(
   });
 
   return { success: true, invoiceId: invoice.id };
+}
+
+// --- Payment schema ---
+
+const paymentSchema = z.object({
+  invoiceId: z.string().min(1, "L'ID fattura è obbligatorio"),
+  amount: z.number().positive("L'importo deve essere positivo"),
+  date: z.string().min(1, "La data è obbligatoria"),
+  method: z.string().optional().default(""),
+  notes: z.string().optional().default(""),
+});
+
+// --- Add payment to invoice ---
+
+export async function addPayment(data: {
+  invoiceId: string;
+  amount: number;
+  date: string;
+  method?: string;
+  notes?: string;
+}): Promise<InvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, message: "Non autenticato" };
+
+  const result = paymentSchema.safeParse(data);
+  if (!result.success) {
+    return {
+      success: false,
+      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { invoiceId, amount, date, method, notes } = result.data;
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      lines: { include: { taxRate: { select: { rate: true } } } },
+      payments: { select: { amount: true } },
+    },
+  });
+
+  if (!invoice) return { success: false, message: "Fattura non trovata" };
+
+  const payableStatuses = ["emessa", "inviata", "parzialmente_pagata", "scaduta"];
+  if (!payableStatuses.includes(invoice.status)) {
+    return {
+      success: false,
+      message: `Non è possibile registrare pagamenti per una fattura in stato "${invoice.status}"`,
+    };
+  }
+
+  const invoiceTotal = invoice.lines.reduce((sum, line) => {
+    const subtotal = Number(line.quantity) * Number(line.unitPrice);
+    const tax = subtotal * (Number(line.taxRate.rate) / 100);
+    return sum + subtotal + tax;
+  }, 0);
+
+  const alreadyPaid = invoice.payments.reduce(
+    (sum, p) => sum + Number(p.amount),
+    0
+  );
+
+  const remaining = invoiceTotal - alreadyPaid;
+
+  if (amount > remaining + 0.01) {
+    return {
+      success: false,
+      errors: {
+        amount: [
+          `L'importo supera il saldo rimanente di ${remaining.toFixed(2)}`,
+        ],
+      },
+    };
+  }
+
+  const totalAfterPayment = alreadyPaid + amount;
+  const isFullyPaid = Math.abs(totalAfterPayment - invoiceTotal) < 0.01;
+  const paymentDate = new Date(date);
+
+  await prisma.$transaction([
+    prisma.payment.create({
+      data: {
+        invoiceId,
+        amount: new Decimal(amount),
+        date: paymentDate,
+        method: method || "",
+        notes: notes || "",
+      },
+    }),
+    prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: isFullyPaid ? "pagata" : "parzialmente_pagata",
+        ...(isFullyPaid ? { paidAt: paymentDate } : {}),
+      },
+    }),
+  ]);
+
+  return {
+    success: true,
+    message: isFullyPaid
+      ? "Fattura completamente pagata"
+      : "Pagamento registrato",
+  };
+}
+
+// --- Delete payment ---
+
+export async function deletePayment(
+  paymentId: string
+): Promise<InvoiceActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, message: "Non autenticato" };
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    select: { invoiceId: true },
+  });
+
+  if (!payment) return { success: false, message: "Pagamento non trovato" };
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: payment.invoiceId },
+    include: {
+      lines: { include: { taxRate: { select: { rate: true } } } },
+      payments: { select: { id: true, amount: true } },
+    },
+  });
+
+  if (!invoice) return { success: false, message: "Fattura non trovata" };
+
+  const remainingPaid = invoice.payments
+    .filter((p) => p.id !== paymentId)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const invoiceTotal = invoice.lines.reduce((sum, line) => {
+    const subtotal = Number(line.quantity) * Number(line.unitPrice);
+    const tax = subtotal * (Number(line.taxRate.rate) / 100);
+    return sum + subtotal + tax;
+  }, 0);
+
+  let newStatus: InvoiceStatus;
+  if (remainingPaid <= 0.01) {
+    newStatus = "emessa";
+  } else if (Math.abs(remainingPaid - invoiceTotal) < 0.01) {
+    newStatus = "pagata";
+  } else {
+    newStatus = "parzialmente_pagata";
+  }
+
+  await prisma.$transaction([
+    prisma.payment.delete({ where: { id: paymentId } }),
+    prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: newStatus,
+        paidAt: newStatus === "pagata" ? invoice.paidAt : null,
+      },
+    }),
+  ]);
+
+  return { success: true, message: "Pagamento eliminato" };
 }
