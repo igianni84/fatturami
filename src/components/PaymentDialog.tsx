@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -45,12 +45,29 @@ const PAYMENT_METHODS = [
   { value: "altro", label: "Altro" },
 ];
 
+const STORAGE_KEY = "lastPaymentMethod";
+
+function getLastPaymentMethod(): string {
+  if (typeof window === "undefined") return "bonifico";
+  return localStorage.getItem(STORAGE_KEY) || "bonifico";
+}
+
+function saveLastPaymentMethod(method: string) {
+  if (typeof window !== "undefined" && method) {
+    localStorage.setItem(STORAGE_KEY, method);
+  }
+}
+
 function formatCurrency(amount: number, currency: string): string {
   const symbol = currency === "EUR" ? "\u20ac" : currency === "GBP" ? "\u00a3" : "$";
   return `${symbol} ${amount.toLocaleString("it-IT", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function roundTwo(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 export function PaymentDialog({
@@ -70,12 +87,14 @@ export function PaymentDialog({
   const [method, setMethod] = useState("");
   const [notes, setNotes] = useState("");
 
-  const resetForm = () => {
-    setAmount(String(Math.round(remaining * 100) / 100));
-    setDate(new Date().toISOString().split("T")[0]);
-    setMethod("");
-    setNotes("");
-  };
+  useEffect(() => {
+    if (open) {
+      setAmount(String(roundTwo(remaining)));
+      setDate(new Date().toISOString().split("T")[0]);
+      setMethod(getLastPaymentMethod());
+      setNotes("");
+    }
+  }, [open, remaining]);
 
   const parsedAmount = parseFloat(amount);
   const isValid =
@@ -84,14 +103,20 @@ export function PaymentDialog({
     parsedAmount <= remaining + 0.01 &&
     date.length > 0;
 
+  const fractions = [
+    { label: "¼", factor: 0.25 },
+    { label: "½", factor: 0.5 },
+    { label: "¾", factor: 0.75 },
+    { label: "Tutto", factor: 1 },
+  ];
+
+  const handleConfirm = () => {
+    saveLastPaymentMethod(method);
+    onConfirm({ amount: parsedAmount, date, method, notes });
+  };
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        if (isOpen) resetForm();
-        onOpenChange(isOpen);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Registra pagamento</DialogTitle>
@@ -115,6 +140,27 @@ export function PaymentDialog({
               onChange={(e) => setAmount(e.target.value)}
               className="mt-1.5"
             />
+            <div className="flex gap-2 mt-2">
+              {fractions.map((f) => {
+                const val = roundTwo(remaining * f.factor);
+                const isActive = parsedAmount === val;
+                return (
+                  <Button
+                    key={f.label}
+                    type="button"
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => setAmount(String(val))}
+                  >
+                    {f.label}
+                    <span className="hidden sm:inline ml-1 text-[10px] opacity-70">
+                      {formatCurrency(val, currency)}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <Label htmlFor="payment-date">Data</Label>
@@ -162,14 +208,7 @@ export function PaymentDialog({
             Annulla
           </Button>
           <Button
-            onClick={() =>
-              onConfirm({
-                amount: parsedAmount,
-                date,
-                method,
-                notes,
-              })
-            }
+            onClick={handleConfirm}
             disabled={loading || !isValid}
           >
             {loading ? "Attendere..." : "Conferma"}
