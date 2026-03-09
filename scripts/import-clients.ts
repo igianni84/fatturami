@@ -1,6 +1,7 @@
-import { PrismaClient, VatRegime } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
+import { detectVatRegime, normalizeCountryCode } from "../src/lib/vat-regime";
 
 const prisma = new PrismaClient();
 
@@ -16,19 +17,6 @@ const COUNTRY_MAP: Record<string, string> = {
   spagna: "ES",
   spain: "ES",
 };
-
-const EU_COUNTRIES = [
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
-  "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
-  "PL", "PT", "RO", "SK", "SI", "ES", "SE",
-];
-
-function detectVatRegime(country: string): VatRegime {
-  const code = country.toUpperCase().trim();
-  if (code === "IT") return VatRegime.nazionale;
-  if (EU_COUNTRIES.includes(code)) return VatRegime.intraUE;
-  return VatRegime.extraUE;
-}
 
 function mapCountry(paese: string): string {
   if (!paese) return "IT";
@@ -48,6 +36,11 @@ function cleanPhone(phone: string): string {
 }
 
 async function main() {
+  // Read company country from settings
+  const company = await prisma.company.findFirst({ select: { country: true } });
+  const companyCountry = company?.country || "ES";
+  console.log(`Company country: ${companyCountry}\n`);
+
   const csvPath = path.resolve(
     "/Users/igianni84/Library/CloudStorage/GoogleDrive-giovanni@crurated.com/My Drive/Lista_clienti_aggiornata.csv"
   );
@@ -96,7 +89,7 @@ async function main() {
     if (sdi) notesParts.push(`Codice SDI: ${sdi}`);
     const notes = notesParts.join("\n");
 
-    const vatRegime = detectVatRegime(country);
+    const vatRegime = detectVatRegime(country, companyCountry);
     const viesValid = viesStr.toUpperCase() === "SI" ? true : viesStr.toUpperCase() === "NO" ? false : null;
 
     // Check if client already exists (by name)

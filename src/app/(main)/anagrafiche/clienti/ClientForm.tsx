@@ -24,65 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const EU_COUNTRIES = [
-  { code: "AT", name: "Austria" },
-  { code: "BE", name: "Belgio" },
-  { code: "BG", name: "Bulgaria" },
-  { code: "HR", name: "Croazia" },
-  { code: "CY", name: "Cipro" },
-  { code: "CZ", name: "Repubblica Ceca" },
-  { code: "DK", name: "Danimarca" },
-  { code: "EE", name: "Estonia" },
-  { code: "FI", name: "Finlandia" },
-  { code: "FR", name: "Francia" },
-  { code: "DE", name: "Germania" },
-  { code: "GR", name: "Grecia" },
-  { code: "HU", name: "Ungheria" },
-  { code: "IE", name: "Irlanda" },
-  { code: "IT", name: "Italia" },
-  { code: "LV", name: "Lettonia" },
-  { code: "LT", name: "Lituania" },
-  { code: "LU", name: "Lussemburgo" },
-  { code: "MT", name: "Malta" },
-  { code: "NL", name: "Paesi Bassi" },
-  { code: "PL", name: "Polonia" },
-  { code: "PT", name: "Portogallo" },
-  { code: "RO", name: "Romania" },
-  { code: "SK", name: "Slovacchia" },
-  { code: "SI", name: "Slovenia" },
-  { code: "ES", name: "Spagna" },
-  { code: "SE", name: "Svezia" },
-];
-
-const EU_COUNTRY_CODES = EU_COUNTRIES.map((c) => c.code);
-
-function detectVatRegime(country: string): string {
-  const code = country.toUpperCase().trim();
-  if (code === "ES") return "nazionale";
-  if (EU_COUNTRY_CODES.includes(code)) return "intraUE";
-  return "extraUE";
-}
-
-const EXTRA_EU_COUNTRIES = [
-  { code: "GB", name: "Regno Unito" },
-  { code: "US", name: "Stati Uniti" },
-  { code: "CH", name: "Svizzera" },
-  { code: "NO", name: "Norvegia" },
-  { code: "JP", name: "Giappone" },
-  { code: "CN", name: "Cina" },
-  { code: "AU", name: "Australia" },
-  { code: "CA", name: "Canada" },
-  { code: "BR", name: "Brasile" },
-  { code: "MX", name: "Messico" },
-];
-
-const ALL_COUNTRIES = [...EU_COUNTRIES, ...EXTRA_EU_COUNTRIES].sort((a, b) =>
-  a.name.localeCompare(b.name)
-);
+import {
+  detectVatRegime,
+  EU_COUNTRIES,
+  EU_COUNTRY_CODES,
+  EXTRA_EU_COUNTRIES,
+} from "@/lib/vat-regime";
 
 const VAT_REGIME_LABELS: Record<string, string> = {
-  nazionale: "Nazionale (ES)",
+  nazionale: "Nazionale",
   intraUE: "Intra-UE",
   extraUE: "Extra-UE",
 };
@@ -103,9 +53,10 @@ const emptyForm: ClientFormData = {
 interface ClientFormProps {
   initialData?: ClientData | null;
   clientId?: string;
+  companyCountry: string;
 }
 
-export default function ClientForm({ initialData, clientId }: ClientFormProps) {
+export default function ClientForm({ initialData, clientId, companyCountry }: ClientFormProps) {
   const router = useRouter();
   const isEdit = !!clientId;
   const [formData, setFormData] = useState<ClientFormData>(
@@ -120,7 +71,7 @@ export default function ClientForm({ initialData, clientId }: ClientFormProps) {
   );
 
   const detectedRegime = formData.country
-    ? detectVatRegime(formData.country)
+    ? detectVatRegime(formData.country, companyCountry)
     : null;
 
   function handleChange(

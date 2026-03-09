@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { VatRegime } from "@prisma/client";
 import { validateVatVies, isViesEligible } from "@/lib/vies";
+import { detectVatRegime } from "@/lib/vat-regime";
+import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
 
 // --- List ---
 
@@ -56,23 +58,6 @@ export async function getClients(
   ]);
 
   return { clients, totalCount };
-}
-
-// --- EU country codes ---
-
-const EU_COUNTRIES = [
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
-  "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
-  "PL", "PT", "RO", "SK", "SI", "ES", "SE",
-];
-
-// --- VAT regime auto-detection ---
-
-function detectVatRegime(country: string): VatRegime {
-  const code = country.toUpperCase().trim();
-  if (code === "ES") return VatRegime.nazionale;
-  if (EU_COUNTRIES.includes(code)) return VatRegime.intraUE;
-  return VatRegime.extraUE;
 }
 
 // --- VAT number validation by country prefix ---
@@ -179,7 +164,8 @@ export async function createClient(
     };
   }
 
-  const vatRegime = detectVatRegime(country);
+  const companyCountry = await getCompanyCountry();
+  const vatRegime = detectVatRegime(country, companyCountry);
 
   // VIES validation for EU clients with VAT number
   let viesValid: boolean | null = null;
@@ -267,7 +253,8 @@ export async function updateClient(
     };
   }
 
-  const vatRegime = detectVatRegime(country);
+  const companyCountry = await getCompanyCountry();
+  const vatRegime = detectVatRegime(country, companyCountry);
 
   // VIES validation for EU clients with VAT number
   let viesValid: boolean | null = null;

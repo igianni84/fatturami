@@ -32,6 +32,13 @@ export type CompanyActionResult = {
   message?: string;
 };
 
+export async function getCompanyCountry(): Promise<string> {
+  const company = await prisma.company.findFirst({
+    select: { country: true },
+  });
+  return company?.country || "ES";
+}
+
 export async function getCompany(): Promise<CompanyFormData | null> {
   const company = await prisma.company.findFirst();
   if (!company) return null;

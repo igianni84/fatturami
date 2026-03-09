@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
 import { VatRegime, InvoiceStatus, PurchaseInvoiceStatus, ExpenseCategory } from "@prisma/client";
+import { detectVatRegime } from "@/lib/vat-regime";
+import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
 
 // Types for CSV import
 
@@ -103,22 +105,6 @@ function parseNumber(value: string): number | null {
   return isNaN(num) ? null : num;
 }
 
-function detectVatRegime(country: string): VatRegime {
-  const upper = country.toUpperCase().trim();
-  if (upper === "ES" || upper === "ESPAÑA" || upper === "SPAIN" || upper === "SPAGNA") {
-    return "nazionale";
-  }
-  const euCountries = [
-    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
-    "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
-    "PL", "PT", "RO", "SK", "SI", "SE",
-  ];
-  if (euCountries.includes(upper)) {
-    return "intraUE";
-  }
-  return "extraUE";
-}
-
 function findTaxRateId(taxRates: { id: string; rate: number; type: string }[], rate: number): string | null {
   const match = taxRates.find((tr) => Math.abs(tr.rate - rate) < 0.5);
   return match ? match.id : null;
@@ -128,7 +114,8 @@ async function findOrCreateClient(
   name: string,
   vatNumber: string,
   country: string,
-  createdClientsMap: Map<string, string>
+  createdClientsMap: Map<string, string>,
+  companyCountry: string
 ): Promise<string> {
   const key = `${name.toLowerCase().trim()}|${vatNumber.toLowerCase().trim()}`;
 
@@ -161,7 +148,7 @@ async function findOrCreateClient(
   }
 
   // Create new client
-  const vatRegime = country ? detectVatRegime(country) : "nazionale";
+  const vatRegime = country ? detectVatRegime(country, companyCountry) : "nazionale";
   const newClient = await prisma.client.create({
     data: {
       name: name.trim(),
@@ -241,6 +228,8 @@ export async function importCSV(
   importType: ImportType
 ): Promise<ImportResult> {
   const errors: ValidationError[] = [];
+
+  const companyCountry = await getCompanyCountry();
 
   // Load tax rates
   const taxRatesRaw = await prisma.taxRate.findMany();
@@ -362,7 +351,7 @@ export async function importCSV(
       const dueDate = dueDateStr ? parseDate(dueDateStr) : null;
 
       // Find or create client
-      const clientId = await findOrCreateClient(clientName, clientVat, clientCountry, createdClientsMap);
+      const clientId = await findOrCreateClient(clientName, clientVat, clientCountry, createdClientsMap, companyCountry);
 
       // Get client's VAT regime for disclaimer
       const client = await prisma.client.findUnique({ where: { id: clientId } });
