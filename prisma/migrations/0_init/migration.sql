@@ -1,275 +1,353 @@
--- CreateTable
-CREATE TABLE `Company` (
-    `id` VARCHAR(191) NOT NULL,
-    `name` VARCHAR(191) NOT NULL,
-    `nif` VARCHAR(191) NOT NULL,
-    `address` VARCHAR(1000) NOT NULL,
-    `city` VARCHAR(191) NOT NULL DEFAULT '',
-    `postalCode` VARCHAR(191) NOT NULL DEFAULT '',
-    `country` VARCHAR(191) NOT NULL DEFAULT 'ES',
-    `email` VARCHAR(191) NOT NULL DEFAULT '',
-    `phone` VARCHAR(191) NOT NULL DEFAULT '',
-    `iban` VARCHAR(191) NOT NULL DEFAULT '',
-    `taxRegime` VARCHAR(191) NOT NULL DEFAULT '',
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+-- CreateEnum
+CREATE TYPE "VatRegime" AS ENUM ('nazionale', 'intraUE', 'extraUE');
 
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- CreateEnum
+CREATE TYPE "InvoiceStatus" AS ENUM ('bozza', 'emessa', 'inviata', 'parzialmente_pagata', 'pagata', 'scaduta');
 
--- CreateTable
-CREATE TABLE `Client` (
-    `id` VARCHAR(191) NOT NULL,
-    `name` VARCHAR(191) NOT NULL,
-    `vatNumber` VARCHAR(191) NOT NULL DEFAULT '',
-    `fiscalCode` VARCHAR(191) NOT NULL DEFAULT '',
-    `address` VARCHAR(1000) NOT NULL DEFAULT '',
-    `city` VARCHAR(191) NOT NULL DEFAULT '',
-    `postalCode` VARCHAR(191) NOT NULL DEFAULT '',
-    `country` VARCHAR(191) NOT NULL DEFAULT '',
-    `email` VARCHAR(191) NOT NULL DEFAULT '',
-    `currency` VARCHAR(191) NOT NULL DEFAULT 'EUR',
-    `vatRegime` ENUM('nazionale', 'intraUE', 'extraUE') NOT NULL DEFAULT 'nazionale',
-    `notes` VARCHAR(5000) NOT NULL DEFAULT '',
-    `viesValid` BOOLEAN NULL,
-    `viesValidatedAt` DATETIME(3) NULL,
-    `deletedAt` DATETIME(3) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+-- CreateEnum
+CREATE TYPE "QuoteStatus" AS ENUM ('bozza', 'inviato', 'accettato', 'rifiutato', 'scaduto', 'convertito');
 
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- CreateEnum
+CREATE TYPE "PurchaseInvoiceStatus" AS ENUM ('registrata', 'pagata');
+
+-- CreateEnum
+CREATE TYPE "ExpenseCategory" AS ENUM ('servizi_professionali', 'software', 'hardware', 'viaggi', 'telecomunicazioni', 'trasporti', 'pasti', 'materiale_ufficio', 'altro');
+
+-- CreateEnum
+CREATE TYPE "TaxRateType" AS ENUM ('standard', 'reduced', 'super_reduced', 'reverse_charge', 'export_exempt');
 
 -- CreateTable
-CREATE TABLE `Supplier` (
-    `id` VARCHAR(191) NOT NULL,
-    `name` VARCHAR(191) NOT NULL,
-    `vatNumber` VARCHAR(191) NOT NULL DEFAULT '',
-    `address` VARCHAR(1000) NOT NULL DEFAULT '',
-    `city` VARCHAR(191) NOT NULL DEFAULT '',
-    `postalCode` VARCHAR(191) NOT NULL DEFAULT '',
-    `country` VARCHAR(191) NOT NULL DEFAULT '',
-    `email` VARCHAR(191) NOT NULL DEFAULT '',
-    `expenseCategory` ENUM('servizi_professionali', 'software', 'hardware', 'viaggi', 'telecomunicazioni', 'trasporti', 'pasti', 'materiale_ufficio', 'altro') NOT NULL DEFAULT 'altro',
-    `deletedAt` DATETIME(3) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+CREATE TABLE "Company" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "nif" TEXT NOT NULL,
+    "address" VARCHAR(1000) NOT NULL,
+    "city" TEXT NOT NULL DEFAULT '',
+    "postalCode" TEXT NOT NULL DEFAULT '',
+    "country" TEXT NOT NULL DEFAULT 'ES',
+    "email" TEXT NOT NULL DEFAULT '',
+    "phone" TEXT NOT NULL DEFAULT '',
+    "iban" TEXT NOT NULL DEFAULT '',
+    "taxRegime" TEXT NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `TaxRate` (
-    `id` VARCHAR(191) NOT NULL,
-    `name` VARCHAR(191) NOT NULL,
-    `rate` DECIMAL(65, 30) NOT NULL,
-    `country` VARCHAR(191) NOT NULL DEFAULT 'ES',
-    `type` ENUM('standard', 'reduced', 'super_reduced', 'reverse_charge', 'export_exempt') NOT NULL DEFAULT 'standard',
-
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "Company_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `Invoice` (
-    `id` VARCHAR(191) NOT NULL,
-    `number` VARCHAR(191) NOT NULL,
-    `clientId` VARCHAR(191) NOT NULL,
-    `date` DATETIME(3) NOT NULL,
-    `dueDate` DATETIME(3) NULL,
-    `status` ENUM('bozza', 'emessa', 'inviata', 'pagata', 'scaduta') NOT NULL DEFAULT 'bozza',
-    `currency` VARCHAR(191) NOT NULL DEFAULT 'EUR',
-    `exchangeRate` DECIMAL(65, 30) NOT NULL DEFAULT 1,
-    `disclaimer` VARCHAR(2000) NOT NULL DEFAULT '',
-    `notes` VARCHAR(5000) NOT NULL DEFAULT '',
-    `paidAt` DATETIME(3) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+CREATE TABLE "Client" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "vatNumber" TEXT NOT NULL DEFAULT '',
+    "fiscalCode" TEXT NOT NULL DEFAULT '',
+    "address" VARCHAR(1000) NOT NULL DEFAULT '',
+    "city" TEXT NOT NULL DEFAULT '',
+    "postalCode" TEXT NOT NULL DEFAULT '',
+    "country" TEXT NOT NULL DEFAULT '',
+    "email" TEXT NOT NULL DEFAULT '',
+    "currency" TEXT NOT NULL DEFAULT 'EUR',
+    "vatRegime" "VatRegime" NOT NULL DEFAULT 'nazionale',
+    "notes" VARCHAR(5000) NOT NULL DEFAULT '',
+    "viesValid" BOOLEAN,
+    "viesValidatedAt" TIMESTAMP(3),
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    UNIQUE INDEX `Invoice_number_key`(`number`),
-    INDEX `Invoice_clientId_idx`(`clientId`),
-    INDEX `Invoice_status_idx`(`status`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `InvoiceLine` (
-    `id` VARCHAR(191) NOT NULL,
-    `invoiceId` VARCHAR(191) NOT NULL,
-    `description` TEXT NOT NULL,
-    `quantity` DECIMAL(65, 30) NOT NULL,
-    `unitPrice` DECIMAL(65, 30) NOT NULL,
-    `taxRateId` VARCHAR(191) NOT NULL,
-
-    INDEX `InvoiceLine_invoiceId_idx`(`invoiceId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `CreditNote` (
-    `id` VARCHAR(191) NOT NULL,
-    `number` VARCHAR(191) NOT NULL,
-    `invoiceId` VARCHAR(191) NOT NULL,
-    `date` DATETIME(3) NOT NULL,
-    `notes` VARCHAR(5000) NOT NULL DEFAULT '',
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+CREATE TABLE "Supplier" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "vatNumber" TEXT NOT NULL DEFAULT '',
+    "address" VARCHAR(1000) NOT NULL DEFAULT '',
+    "city" TEXT NOT NULL DEFAULT '',
+    "postalCode" TEXT NOT NULL DEFAULT '',
+    "country" TEXT NOT NULL DEFAULT '',
+    "email" TEXT NOT NULL DEFAULT '',
+    "expenseCategory" "ExpenseCategory" NOT NULL DEFAULT 'altro',
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    UNIQUE INDEX `CreditNote_number_key`(`number`),
-    INDEX `CreditNote_invoiceId_idx`(`invoiceId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `CreditNoteLine` (
-    `id` VARCHAR(191) NOT NULL,
-    `creditNoteId` VARCHAR(191) NOT NULL,
-    `description` TEXT NOT NULL,
-    `quantity` DECIMAL(65, 30) NOT NULL,
-    `unitPrice` DECIMAL(65, 30) NOT NULL,
-    `taxRateId` VARCHAR(191) NOT NULL,
-
-    INDEX `CreditNoteLine_creditNoteId_idx`(`creditNoteId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "Supplier_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `Quote` (
-    `id` VARCHAR(191) NOT NULL,
-    `number` VARCHAR(191) NOT NULL,
-    `clientId` VARCHAR(191) NOT NULL,
-    `date` DATETIME(3) NOT NULL,
-    `expiryDate` DATETIME(3) NULL,
-    `status` ENUM('bozza', 'inviato', 'accettato', 'rifiutato', 'scaduto', 'convertito') NOT NULL DEFAULT 'bozza',
-    `notes` VARCHAR(5000) NOT NULL DEFAULT '',
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+CREATE TABLE "TaxRate" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "rate" DECIMAL(65,30) NOT NULL,
+    "country" TEXT NOT NULL DEFAULT 'ES',
+    "type" "TaxRateType" NOT NULL DEFAULT 'standard',
 
-    UNIQUE INDEX `Quote_number_key`(`number`),
-    INDEX `Quote_clientId_idx`(`clientId`),
-    INDEX `Quote_status_idx`(`status`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "TaxRate_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `QuoteLine` (
-    `id` VARCHAR(191) NOT NULL,
-    `quoteId` VARCHAR(191) NOT NULL,
-    `description` TEXT NOT NULL,
-    `quantity` DECIMAL(65, 30) NOT NULL,
-    `unitPrice` DECIMAL(65, 30) NOT NULL,
-    `taxRateId` VARCHAR(191) NOT NULL,
+CREATE TABLE "Invoice" (
+    "id" TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "dueDate" TIMESTAMP(3),
+    "status" "InvoiceStatus" NOT NULL DEFAULT 'bozza',
+    "currency" TEXT NOT NULL DEFAULT 'EUR',
+    "exchangeRate" DECIMAL(65,30) NOT NULL DEFAULT 1,
+    "disclaimer" VARCHAR(2000) NOT NULL DEFAULT '',
+    "notes" VARCHAR(5000) NOT NULL DEFAULT '',
+    "paidAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    INDEX `QuoteLine_quoteId_idx`(`quoteId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `PurchaseInvoice` (
-    `id` VARCHAR(191) NOT NULL,
-    `supplierId` VARCHAR(191) NOT NULL,
-    `number` VARCHAR(191) NOT NULL,
-    `date` DATETIME(3) NOT NULL,
-    `category` ENUM('servizi_professionali', 'software', 'hardware', 'viaggi', 'telecomunicazioni', 'trasporti', 'pasti', 'materiale_ufficio', 'altro') NOT NULL DEFAULT 'altro',
-    `status` ENUM('registrata', 'pagata') NOT NULL DEFAULT 'registrata',
-    `filePath` VARCHAR(191) NULL,
-    `notes` VARCHAR(5000) NOT NULL DEFAULT '',
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    INDEX `PurchaseInvoice_supplierId_idx`(`supplierId`),
-    INDEX `PurchaseInvoice_status_idx`(`status`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `PurchaseInvoiceLine` (
-    `id` VARCHAR(191) NOT NULL,
-    `purchaseInvoiceId` VARCHAR(191) NOT NULL,
-    `description` TEXT NOT NULL,
-    `amount` DECIMAL(65, 30) NOT NULL,
-    `taxRateId` VARCHAR(191) NOT NULL,
-    `deductible` BOOLEAN NOT NULL DEFAULT true,
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "amount" DECIMAL(65,30) NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "method" VARCHAR(100) NOT NULL DEFAULT '',
+    "notes" VARCHAR(1000) NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    INDEX `PurchaseInvoiceLine_purchaseInvoiceId_idx`(`purchaseInvoiceId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `Expense` (
-    `id` VARCHAR(191) NOT NULL,
-    `date` DATETIME(3) NOT NULL,
-    `description` TEXT NOT NULL,
-    `amount` DECIMAL(65, 30) NOT NULL,
-    `category` ENUM('servizi_professionali', 'software', 'hardware', 'viaggi', 'telecomunicazioni', 'trasporti', 'pasti', 'materiale_ufficio', 'altro') NOT NULL DEFAULT 'altro',
-    `taxAmount` DECIMAL(65, 30) NOT NULL DEFAULT 0,
-    `deductible` BOOLEAN NOT NULL DEFAULT true,
-    `filePath` VARCHAR(191) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `User` (
-    `id` VARCHAR(191) NOT NULL,
-    `email` VARCHAR(191) NOT NULL,
-    `password` VARCHAR(255) NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+CREATE TABLE "InvoiceLine" (
+    "id" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "quantity" DECIMAL(65,30) NOT NULL,
+    "unitPrice" DECIMAL(65,30) NOT NULL,
+    "taxRateId" TEXT NOT NULL,
 
-    UNIQUE INDEX `User_email_key`(`email`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "InvoiceLine_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
-CREATE TABLE `AuditLog` (
-    `id` VARCHAR(191) NOT NULL,
-    `userId` VARCHAR(191) NULL,
-    `action` VARCHAR(191) NOT NULL,
-    `details` JSON NULL,
-    `ipAddress` VARCHAR(191) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+CREATE TABLE "CreditNote" (
+    "id" TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "notes" VARCHAR(5000) NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    INDEX `AuditLog_userId_idx`(`userId`),
-    INDEX `AuditLog_action_idx`(`action`),
-    INDEX `AuditLog_createdAt_idx`(`createdAt`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CONSTRAINT "CreditNote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CreditNoteLine" (
+    "id" TEXT NOT NULL,
+    "creditNoteId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "quantity" DECIMAL(65,30) NOT NULL,
+    "unitPrice" DECIMAL(65,30) NOT NULL,
+    "taxRateId" TEXT NOT NULL,
+
+    CONSTRAINT "CreditNoteLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Quote" (
+    "id" TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "expiryDate" TIMESTAMP(3),
+    "status" "QuoteStatus" NOT NULL DEFAULT 'bozza',
+    "notes" VARCHAR(5000) NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Quote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuoteLine" (
+    "id" TEXT NOT NULL,
+    "quoteId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "quantity" DECIMAL(65,30) NOT NULL,
+    "unitPrice" DECIMAL(65,30) NOT NULL,
+    "taxRateId" TEXT NOT NULL,
+
+    CONSTRAINT "QuoteLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseInvoice" (
+    "id" TEXT NOT NULL,
+    "supplierId" TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "category" "ExpenseCategory" NOT NULL DEFAULT 'altro',
+    "status" "PurchaseInvoiceStatus" NOT NULL DEFAULT 'registrata',
+    "filePath" TEXT,
+    "notes" VARCHAR(5000) NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PurchaseInvoice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseInvoiceLine" (
+    "id" TEXT NOT NULL,
+    "purchaseInvoiceId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "amount" DECIMAL(65,30) NOT NULL,
+    "taxRateId" TEXT NOT NULL,
+    "deductible" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "PurchaseInvoiceLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Expense" (
+    "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "description" TEXT NOT NULL,
+    "amount" DECIMAL(65,30) NOT NULL,
+    "category" "ExpenseCategory" NOT NULL DEFAULT 'altro',
+    "taxAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "deductible" BOOLEAN NOT NULL DEFAULT true,
+    "filePath" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Expense_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" VARCHAR(255) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AuditLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT,
+    "action" TEXT NOT NULL,
+    "details" JSONB,
+    "ipAddress" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "Client_deletedAt_name_idx" ON "Client"("deletedAt", "name");
+
+-- CreateIndex
+CREATE INDEX "Supplier_deletedAt_name_idx" ON "Supplier"("deletedAt", "name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Invoice_number_key" ON "Invoice"("number");
+
+-- CreateIndex
+CREATE INDEX "Invoice_clientId_idx" ON "Invoice"("clientId");
+
+-- CreateIndex
+CREATE INDEX "Invoice_status_idx" ON "Invoice"("status");
+
+-- CreateIndex
+CREATE INDEX "Payment_invoiceId_idx" ON "Payment"("invoiceId");
+
+-- CreateIndex
+CREATE INDEX "InvoiceLine_invoiceId_idx" ON "InvoiceLine"("invoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CreditNote_number_key" ON "CreditNote"("number");
+
+-- CreateIndex
+CREATE INDEX "CreditNote_invoiceId_idx" ON "CreditNote"("invoiceId");
+
+-- CreateIndex
+CREATE INDEX "CreditNoteLine_creditNoteId_idx" ON "CreditNoteLine"("creditNoteId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Quote_number_key" ON "Quote"("number");
+
+-- CreateIndex
+CREATE INDEX "Quote_clientId_idx" ON "Quote"("clientId");
+
+-- CreateIndex
+CREATE INDEX "Quote_status_idx" ON "Quote"("status");
+
+-- CreateIndex
+CREATE INDEX "QuoteLine_quoteId_idx" ON "QuoteLine"("quoteId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseInvoice_supplierId_idx" ON "PurchaseInvoice"("supplierId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseInvoice_status_idx" ON "PurchaseInvoice"("status");
+
+-- CreateIndex
+CREATE INDEX "PurchaseInvoiceLine_purchaseInvoiceId_idx" ON "PurchaseInvoiceLine"("purchaseInvoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_userId_idx" ON "AuditLog"("userId");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_action_idx" ON "AuditLog"("action");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
 
 -- AddForeignKey
-ALTER TABLE `Invoice` ADD CONSTRAINT `Invoice_clientId_fkey` FOREIGN KEY (`clientId`) REFERENCES `Client`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `InvoiceLine` ADD CONSTRAINT `InvoiceLine_invoiceId_fkey` FOREIGN KEY (`invoiceId`) REFERENCES `Invoice`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `InvoiceLine` ADD CONSTRAINT `InvoiceLine_taxRateId_fkey` FOREIGN KEY (`taxRateId`) REFERENCES `TaxRate`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `CreditNote` ADD CONSTRAINT `CreditNote_invoiceId_fkey` FOREIGN KEY (`invoiceId`) REFERENCES `Invoice`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_taxRateId_fkey" FOREIGN KEY ("taxRateId") REFERENCES "TaxRate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `CreditNoteLine` ADD CONSTRAINT `CreditNoteLine_creditNoteId_fkey` FOREIGN KEY (`creditNoteId`) REFERENCES `CreditNote`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CreditNote" ADD CONSTRAINT "CreditNote_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `CreditNoteLine` ADD CONSTRAINT `CreditNoteLine_taxRateId_fkey` FOREIGN KEY (`taxRateId`) REFERENCES `TaxRate`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CreditNoteLine" ADD CONSTRAINT "CreditNoteLine_creditNoteId_fkey" FOREIGN KEY ("creditNoteId") REFERENCES "CreditNote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Quote` ADD CONSTRAINT `Quote_clientId_fkey` FOREIGN KEY (`clientId`) REFERENCES `Client`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CreditNoteLine" ADD CONSTRAINT "CreditNoteLine_taxRateId_fkey" FOREIGN KEY ("taxRateId") REFERENCES "TaxRate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `QuoteLine` ADD CONSTRAINT `QuoteLine_quoteId_fkey` FOREIGN KEY (`quoteId`) REFERENCES `Quote`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Quote" ADD CONSTRAINT "Quote_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `QuoteLine` ADD CONSTRAINT `QuoteLine_taxRateId_fkey` FOREIGN KEY (`taxRateId`) REFERENCES `TaxRate`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_quoteId_fkey" FOREIGN KEY ("quoteId") REFERENCES "Quote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `PurchaseInvoice` ADD CONSTRAINT `PurchaseInvoice_supplierId_fkey` FOREIGN KEY (`supplierId`) REFERENCES `Supplier`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_taxRateId_fkey" FOREIGN KEY ("taxRateId") REFERENCES "TaxRate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `PurchaseInvoiceLine` ADD CONSTRAINT `PurchaseInvoiceLine_purchaseInvoiceId_fkey` FOREIGN KEY (`purchaseInvoiceId`) REFERENCES `PurchaseInvoice`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PurchaseInvoice" ADD CONSTRAINT "PurchaseInvoice_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `PurchaseInvoiceLine` ADD CONSTRAINT `PurchaseInvoiceLine_taxRateId_fkey` FOREIGN KEY (`taxRateId`) REFERENCES `TaxRate`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "PurchaseInvoiceLine" ADD CONSTRAINT "PurchaseInvoiceLine_purchaseInvoiceId_fkey" FOREIGN KEY ("purchaseInvoiceId") REFERENCES "PurchaseInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "PurchaseInvoiceLine" ADD CONSTRAINT "PurchaseInvoiceLine_taxRateId_fkey" FOREIGN KEY ("taxRateId") REFERENCES "TaxRate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

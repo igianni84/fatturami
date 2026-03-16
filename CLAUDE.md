@@ -55,7 +55,7 @@
 ## Project Context
 
 ### What This Is
-**Invoicing System** — Sistema di fatturazione web per freelancer/autonomo spagnolo che opera a livello internazionale (IT, UK, EU, extra-EU). Gestione completa del ciclo di fatturazione, preventivi, note di credito, acquisti, spese e report fiscali (IVA/IRPF).
+**Invoicing System (fatturami.cloud)** — SaaS di fatturazione per freelancer in Italia e Spagna. Gestione completa: fatturazione, preventivi, note di credito, acquisti, spese, report fiscali (IVA/IRPF/IRPEF). In fase di trasformazione da single-user a multi-tenant SaaS. Vedi `tasks/saas-migration.md` per lo stato della migrazione.
 
 ### Tech Stack
 - **Framework:** Next.js 16.1.4, React 19.2.3, TypeScript 5.9.3 (strict mode)
@@ -137,6 +137,7 @@
 
 ### PRD & Task Files
 - PRD: `tasks/prd-invoicing-system.md` (spec completa con 17 user stories US-001–US-017)
+- SaaS Migration: `tasks/saas-migration.md` (tracking 8 fasi di trasformazione multi-tenant)
 - Lessons: `tasks/lessons.md` (pattern e correzioni apprese)
 - Todo: `tasks/todo.md` (task correnti con checkbox)
 - Scripts import: `scripts/import-*.ts` (import dati da CSV/directory con Prisma)
@@ -183,13 +184,20 @@ Le seguenti skill sono installate globalmente in `~/.claude/skills/` e DEVONO es
 - **Branch sviluppo:** `ralph/invoicing-system`
 - **Convenzione commit:** semantic (`feat:`, `docs:`, `fix:`) con riferimento user story (es. `feat: US-034 - VIES VAT number validation`)
 
+### Produzione (fatturami.cloud)
+- **Hosting:** Ploi (server gestito)
+- **IP:** 46.224.207.175
+- **SSH:** `ssh ploi@46.224.207.175` (chiave SSH configurata, no password)
+- **Database:** In migrazione da MySQL a Supabase PostgreSQL (vedi `tasks/saas-migration.md`)
+- **Dominio:** fatturami.cloud
+
 ### Known Gotchas
 - `ANTHROPIC_API_KEY` presente in `.env.example` ma non in `.env` — necessario aggiungerlo per le feature AI
 - Prisma Decimal: i campi `Decimal` vanno convertiti con `Number()` lato client, altrimenti errori di serializzazione
 - `searchParams` e `params` nelle pagine Next.js 16 sono `Promise` — devono essere `await`-ati
 - Dev server: `npm run dev` sulla porta 3000, configurato anche in `.claude/launch.json`
 - Seeding DB: `npx prisma db seed` usa `tsx prisma/seed.ts`
-- Migrazioni Prisma: 3 migrazioni (`create_core_entities`, `add_user_model`, `add_vies_validation_fields`)
+- Migrazioni Prisma: 1 baseline PostgreSQL (`0_init` — schema completo)
 - Directory `INCASSI/` e `SPESE/` contengono dati sorgente per import — non committare
 - Directory `uploads/` per file caricati (fatture acquisto, spese) — persistita via Docker volume
 - Nessun framework di test configurato — verificare via typecheck (`npm run typecheck`) e ESLint (`npm run lint`)

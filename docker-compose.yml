@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: invoicing
+      POSTGRES_USER: invoicing
+      POSTGRES_PASSWORD: invoicing
     ports:
       - "5432:5432"
     volumes:
@@ -19,7 +19,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/invoicing?schema=public"
+      DATABASE_URL: "postgresql://invoicing:invoicing@db:5432/invoicing"
+      DIRECT_URL: "postgresql://invoicing:invoicing@db:5432/invoicing"
+      JWT_SECRET: "${JWT_SECRET}"
     depends_on:
       - db
     volumes:
