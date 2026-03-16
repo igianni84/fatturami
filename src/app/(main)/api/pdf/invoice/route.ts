@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   // Fetch invoice and company data in parallel
   const [invoice, company] = await Promise.all([
     prisma.invoice.findUnique({
-      where: { id: invoiceId },
+      where: { id: invoiceId, userId: user.userId },
       include: {
         client: {
           select: {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         },
       },
     }),
-    prisma.company.findFirst(),
+    prisma.company.findUnique({ where: { userId: user.userId } }),
   ]);
 
   if (!invoice) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -62,8 +62,9 @@ export type CreditNoteFormData = z.infer<typeof creditNoteSchema>;
 export async function getInvoiceForCreditNote(
   invoiceId: string
 ): Promise<InvoiceForCreditNote | null> {
+  const { userId } = await requireUser();
   const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+    where: { id: invoiceId, userId },
     include: {
       client: { select: { name: true } },
       lines: {
@@ -125,12 +126,14 @@ export async function getCreditNotes(params: {
   page?: number;
   pageSize?: number;
 }): Promise<{ items: CreditNoteListItem[]; totalCount: number }> {
+  const { userId } = await requireUser();
   const page = params.page || 1;
   const pageSize = params.pageSize || 10;
   const skip = (page - 1) * pageSize;
 
   const [creditNotes, totalCount] = await Promise.all([
     prisma.creditNote.findMany({
+      where: { userId },
       skip,
       take: pageSize,
       orderBy: { date: "desc" },
@@ -145,7 +148,7 @@ export async function getCreditNotes(params: {
         },
       },
     }),
-    prisma.creditNote.count(),
+    prisma.creditNote.count({ where: { userId } }),
   ]);
 
   const items: CreditNoteListItem[] = creditNotes.map((cn) => {
@@ -181,7 +184,7 @@ export async function deleteCreditNote(
   }
 
   const creditNote = await prisma.creditNote.findUnique({
-    where: { id: creditNoteId },
+    where: { id: creditNoteId, userId: user.userId },
     select: { id: true },
   });
 
@@ -189,7 +192,7 @@ export async function deleteCreditNote(
     return { success: false, message: "Nota di credito non trovata" };
   }
 
-  await prisma.creditNote.delete({ where: { id: creditNoteId } });
+  await prisma.creditNote.delete({ where: { id: creditNoteId, userId: user.userId } });
   return { success: true, message: "Nota di credito eliminata" };
 }
 
@@ -219,7 +222,7 @@ export async function createCreditNote(
 
   // Verify invoice exists and is in a valid status
   const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+    where: { id: invoiceId, userId: user.userId },
     select: { status: true },
   });
 
@@ -237,13 +240,14 @@ export async function createCreditNote(
 
   const number = await generateDocumentNumber("NC", (prefix) =>
     prisma.creditNote.findFirst({
-      where: { number: { startsWith: prefix } },
+      where: { userId: user.userId, number: { startsWith: prefix } },
       orderBy: { number: "desc" },
     })
   );
 
   const creditNote = await prisma.creditNote.create({
     data: {
+      userId: user.userId,
       number,
       invoiceId,
       date: new Date(date),

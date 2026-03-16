@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ExpenseCategory, PurchaseInvoiceStatus, Prisma } from "@prisma/client";
@@ -54,8 +54,9 @@ export type PurchaseInvoiceFormData = z.infer<typeof purchaseInvoiceSchema>;
 // --- Fetch suppliers for dropdown ---
 
 export async function getSuppliersForSelect(): Promise<SupplierOption[]> {
+  const { userId } = await requireUser();
   const suppliers = await prisma.supplier.findMany({
-    where: { deletedAt: null },
+    where: { userId, deletedAt: null },
     select: { id: true, name: true, expenseCategory: true },
     orderBy: { name: "asc" },
   });
@@ -125,7 +126,7 @@ export async function createPurchaseInvoice(
 
   // Validate supplier exists and is not soft-deleted
   const supplier = await prisma.supplier.findUnique({
-    where: { id: result.data.supplierId, deletedAt: null },
+    where: { id: result.data.supplierId, userId: user.userId, deletedAt: null },
     select: { id: true },
   });
   if (!supplier) {
@@ -151,6 +152,7 @@ export async function createPurchaseInvoice(
 
   const purchaseInvoice = await prisma.purchaseInvoice.create({
     data: {
+      userId: user.userId,
       supplierId: result.data.supplierId,
       number: result.data.number,
       date: new Date(result.data.date),
@@ -200,11 +202,12 @@ export async function getPurchaseInvoices(params: {
   dateFrom?: string;
   dateTo?: string;
 }): Promise<PurchaseInvoiceListResult> {
+  const { userId } = await requireUser();
   const page = params.page || 1;
   const pageSize = params.pageSize || 10;
   const skip = (page - 1) * pageSize;
 
-  const where: Prisma.PurchaseInvoiceWhereInput = {};
+  const where: Prisma.PurchaseInvoiceWhereInput = { userId };
 
   if (params.status && params.status !== "tutti") {
     where.status = params.status as PurchaseInvoiceStatus;
@@ -285,8 +288,9 @@ export interface PurchaseInvoiceDetail {
 export async function getPurchaseInvoice(
   id: string
 ): Promise<PurchaseInvoiceDetail | null> {
+  const { userId } = await requireUser();
   const pi = await prisma.purchaseInvoice.findUnique({
-    where: { id },
+    where: { id, userId },
     include: {
       supplier: { select: { name: true } },
       lines: {
@@ -330,7 +334,7 @@ export async function deletePurchaseInvoice(
   }
 
   const pi = await prisma.purchaseInvoice.findUnique({
-    where: { id },
+    where: { id, userId: user.userId },
     select: { id: true },
   });
 
@@ -338,7 +342,7 @@ export async function deletePurchaseInvoice(
     return { success: false, message: "Fattura di acquisto non trovata" };
   }
 
-  await prisma.purchaseInvoice.delete({ where: { id } });
+  await prisma.purchaseInvoice.delete({ where: { id, userId: user.userId } });
   return { success: true, message: "Fattura di acquisto eliminata" };
 }
 
@@ -359,7 +363,7 @@ export async function updatePurchaseInvoiceStatus(
   }
 
   await prisma.purchaseInvoice.update({
-    where: { id },
+    where: { id, userId: user.userId },
     data: { status: newStatus as PurchaseInvoiceStatus },
   });
 

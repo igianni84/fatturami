@@ -63,6 +63,7 @@ enum TaxRateType {
 
 model Company {
   id         String   @id @default(cuid())
+  userId     String   @unique
   name       String
   nif        String
   address    String   @db.VarChar(1000)
@@ -75,10 +76,13 @@ model Company {
   taxRegime  String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Client {
   id              String     @id @default(cuid())
+  userId          String
   name            String
   vatNumber       String     @default("")
   fiscalCode      String     @default("")
@@ -96,14 +100,16 @@ model Client {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  invoices   Invoice[]
-  quotes     Quote[]
+  user     User      @relation(fields: [userId], references: [id])
+  invoices Invoice[]
+  quotes   Quote[]
 
-  @@index([deletedAt, name])
+  @@index([userId, deletedAt, name])
 }
 
 model Supplier {
   id              String          @id @default(cuid())
+  userId          String
   name            String
   vatNumber       String          @default("")
   address         String          @default("") @db.VarChar(1000)
@@ -116,9 +122,10 @@ model Supplier {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  user             User              @relation(fields: [userId], references: [id])
   purchaseInvoices PurchaseInvoice[]
 
-  @@index([deletedAt, name])
+  @@index([userId, deletedAt, name])
 }
 
 model TaxRate {
@@ -136,7 +143,8 @@ model TaxRate {
 
 model Invoice {
   id           String        @id @default(cuid())
-  number       String        @unique
+  userId       String
+  number       String
   clientId     String
   date         DateTime
   dueDate      DateTime?
@@ -149,13 +157,15 @@ model Invoice {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  user        User          @relation(fields: [userId], references: [id])
   client      Client        @relation(fields: [clientId], references: [id])
   lines       InvoiceLine[]
   creditNotes CreditNote[]
   payments    Payment[]
 
+  @@unique([userId, number])
+  @@index([userId, status])
   @@index([clientId])
-  @@index([status])
 }
 
 model Payment {
@@ -188,17 +198,20 @@ model InvoiceLine {
 
 model CreditNote {
   id        String   @id @default(cuid())
-  number    String   @unique
+  userId    String
+  number    String
   invoiceId String
   date      DateTime
   notes     String   @default("") @db.VarChar(5000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user    User             @relation(fields: [userId], references: [id])
   invoice Invoice          @relation(fields: [invoiceId], references: [id])
   lines   CreditNoteLine[]
 
-  @@index([invoiceId])
+  @@unique([userId, number])
+  @@index([userId, invoiceId])
 }
 
 model CreditNoteLine {
@@ -217,7 +230,8 @@ model CreditNoteLine {
 
 model Quote {
   id         String      @id @default(cuid())
-  number     String      @unique
+  userId     String
+  number     String
   clientId   String
   date       DateTime
   expiryDate DateTime?
@@ -226,11 +240,13 @@ model Quote {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
+  user   User        @relation(fields: [userId], references: [id])
   client Client      @relation(fields: [clientId], references: [id])
   lines  QuoteLine[]
 
+  @@unique([userId, number])
+  @@index([userId, status])
   @@index([clientId])
-  @@index([status])
 }
 
 model QuoteLine {
@@ -249,6 +265,7 @@ model QuoteLine {
 
 model PurchaseInvoice {
   id         String                @id @default(cuid())
+  userId     String
   supplierId String
   number     String
   date       DateTime
@@ -259,11 +276,12 @@ model PurchaseInvoice {
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
 
+  user     User                  @relation(fields: [userId], references: [id])
   supplier Supplier              @relation(fields: [supplierId], references: [id])
   lines    PurchaseInvoiceLine[]
 
+  @@index([userId, status])
   @@index([supplierId])
-  @@index([status])
 }
 
 model PurchaseInvoiceLine {
@@ -282,6 +300,7 @@ model PurchaseInvoiceLine {
 
 model Expense {
   id          String          @id @default(cuid())
+  userId      String
   date        DateTime
   description String          @db.Text
   amount      Decimal
@@ -291,6 +310,10 @@ model Expense {
   filePath    String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model User {
@@ -299,6 +322,15 @@ model User {
   email      String   @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  companies        Company[]
+  clients          Client[]
+  suppliers        Supplier[]
+  invoices         Invoice[]
+  quotes           Quote[]
+  creditNotes      CreditNote[]
+  purchaseInvoices PurchaseInvoice[]
+  expenses         Expense[]
 }
 
 model AuditLog {

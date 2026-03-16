@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit";
 import { getFieldErrors } from "@/lib/utils";
@@ -35,14 +35,17 @@ export type CompanyActionResult = {
 };
 
 export async function getCompanyCountry(): Promise<string> {
-  const company = await prisma.company.findFirst({
+  const { userId } = await requireUser();
+  const company = await prisma.company.findUnique({
+    where: { userId },
     select: { country: true },
   });
   return company?.country || "ES";
 }
 
 export async function getCompany(): Promise<CompanyFormData | null> {
-  const company = await prisma.company.findFirst();
+  const { userId } = await requireUser();
+  const company = await prisma.company.findUnique({ where: { userId } });
   if (!company) return null;
   return {
     name: company.name,
@@ -70,18 +73,13 @@ export async function saveCompany(
     };
   }
 
-  const existing = await prisma.company.findFirst();
+  const currentUser = await requireUser();
 
-  if (existing) {
-    await prisma.company.update({
-      where: { id: existing.id },
-      data: result.data,
-    });
-  } else {
-    await prisma.company.create({
-      data: result.data,
-    });
-  }
+  await prisma.company.upsert({
+    where: { userId: currentUser.userId },
+    update: result.data,
+    create: { userId: currentUser.userId, ...result.data },
+  });
 
   return { success: true, message: "Dati aziendali salvati con successo" };
 }

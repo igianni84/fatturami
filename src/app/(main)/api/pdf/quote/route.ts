@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const [quote, company] = await Promise.all([
     prisma.quote.findUnique({
-      where: { id: quoteId },
+      where: { id: quoteId, userId: user.userId },
       include: {
         client: {
           select: {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         },
       },
     }),
-    prisma.company.findFirst(),
+    prisma.company.findUnique({ where: { userId: user.userId } }),
   ]);
 
   if (!quote) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { z } from "zod";
 import { VatRegime } from "@prisma/client";
 import { validateVatVies, isViesEligible } from "@/lib/vies";
@@ -29,7 +29,9 @@ export async function getClients(
   page: number = 1,
   pageSize: number = 10
 ): Promise<ClientListResult> {
+  const { userId } = await requireUser();
   const where = {
+    userId,
     deletedAt: null,
     ...(search
       ? {
@@ -120,7 +122,8 @@ export interface ClientData extends ClientFormData {
 }
 
 export async function getClient(id: string): Promise<ClientData | null> {
-  const client = await prisma.client.findFirst({ where: { id, deletedAt: null } });
+  const { userId } = await requireUser();
+  const client = await prisma.client.findFirst({ where: { id, userId, deletedAt: null } });
   if (!client) return null;
   return {
     name: client.name,
@@ -186,6 +189,7 @@ export async function createClient(
 
   await prisma.client.create({
     data: {
+      userId: user.userId,
       ...result.data,
       vatRegime,
       viesValid,
@@ -219,7 +223,7 @@ export async function deleteClient(id: string): Promise<ClientActionResult> {
   }
 
   await prisma.client.update({
-    where: { id },
+    where: { id, userId: user.userId },
     data: { deletedAt: new Date() },
   });
 
@@ -270,7 +274,7 @@ export async function updateClient(
     } else {
       // Service unavailable - keep existing validation, but warn
       const existing = await prisma.client.findUnique({
-        where: { id },
+        where: { id, userId: user.userId },
         select: { viesValid: true, viesValidatedAt: true },
       });
       viesValid = existing?.viesValid ?? null;
@@ -280,7 +284,7 @@ export async function updateClient(
   }
 
   await prisma.client.update({
-    where: { id },
+    where: { id, userId: user.userId },
     data: {
       ...result.data,
       vatRegime,

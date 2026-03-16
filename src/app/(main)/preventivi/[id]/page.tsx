@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { DownloadPDFButton } from "@/components/DownloadPDFButton";
@@ -26,9 +27,10 @@ export default async function QuoteDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { userId } = await requireUser();
 
   const quote = await prisma.quote.findUnique({
-    where: { id },
+    where: { id, userId },
     include: {
       client: {
         select: { name: true, vatNumber: true, country: true },

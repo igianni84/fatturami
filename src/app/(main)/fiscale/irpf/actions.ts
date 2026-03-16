@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 export interface IRPFReportData {
   year: number;
@@ -101,6 +102,7 @@ function calculateIRPF(netIncome: number): { total: number; brackets: BracketBre
 }
 
 export async function getIRPFReport(year: number): Promise<IRPFReportData> {
+  const { userId } = await requireUser();
   const quarterlyData: QuarterData[] = [];
   let totalRevenue = 0;
   let totalDeductibleExpenses = 0;
@@ -112,6 +114,7 @@ export async function getIRPFReport(year: number): Promise<IRPFReportData> {
     // Revenue: all issued invoices (emessa/inviata/pagata) in the quarter
     const invoices = await prisma.invoice.findMany({
       where: {
+        userId,
         date: { gte: start, lte: end },
         status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       },
@@ -130,6 +133,7 @@ export async function getIRPFReport(year: number): Promise<IRPFReportData> {
     // Deductible expenses: purchase invoices + expenses (deductible only)
     const purchaseInvoices = await prisma.purchaseInvoice.findMany({
       where: {
+        userId,
         date: { gte: start, lte: end },
       },
       include: {
@@ -147,6 +151,7 @@ export async function getIRPFReport(year: number): Promise<IRPFReportData> {
     // Regular expenses (deductible only)
     const expenses = await prisma.expense.findMany({
       where: {
+        userId,
         date: { gte: start, lte: end },
         deductible: true,
       },

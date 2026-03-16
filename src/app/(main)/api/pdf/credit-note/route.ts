@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const [creditNote, company] = await Promise.all([
     prisma.creditNote.findUnique({
-      where: { id: creditNoteId },
+      where: { id: creditNoteId, userId: user.userId },
       include: {
         invoice: {
           include: {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         },
       },
     }),
-    prisma.company.findFirst(),
+    prisma.company.findUnique({ where: { userId: user.userId } }),
   ]);
 
   if (!creditNote) {

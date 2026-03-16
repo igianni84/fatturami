@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
       const normalizedVat = extracted.supplierVatNumber.replace(/[\s.-]/g, "").toUpperCase();
       const supplier = await prisma.supplier.findFirst({
         where: {
+          userId: user.userId,
           deletedAt: null,
           vatNumber: {
             contains: normalizedVat,

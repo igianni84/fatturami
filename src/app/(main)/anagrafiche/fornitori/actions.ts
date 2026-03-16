@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { z } from "zod";
 import { ExpenseCategory } from "@prisma/client";
 import { getFieldErrors } from "@/lib/utils";
@@ -27,7 +27,9 @@ export async function getSuppliers(
   page: number = 1,
   pageSize: number = 10
 ): Promise<SupplierListResult> {
+  const { userId } = await requireUser();
   const where = {
+    userId,
     deletedAt: null,
     ...(search
       ? {
@@ -89,7 +91,8 @@ export type SupplierActionResult = {
 // --- Get single supplier ---
 
 export async function getSupplier(id: string): Promise<SupplierFormData | null> {
-  const supplier = await prisma.supplier.findFirst({ where: { id, deletedAt: null } });
+  const { userId } = await requireUser();
+  const supplier = await prisma.supplier.findFirst({ where: { id, userId, deletedAt: null } });
   if (!supplier) return null;
   return {
     name: supplier.name,
@@ -123,6 +126,7 @@ export async function createSupplier(
 
   await prisma.supplier.create({
     data: {
+      userId: user.userId,
       ...result.data,
       expenseCategory: result.data.expenseCategory as ExpenseCategory,
     },
@@ -151,7 +155,7 @@ export async function updateSupplier(
   }
 
   await prisma.supplier.update({
-    where: { id },
+    where: { id, userId: user.userId },
     data: {
       ...result.data,
       expenseCategory: result.data.expenseCategory as ExpenseCategory,
@@ -170,7 +174,7 @@ export async function deleteSupplier(id: string): Promise<SupplierActionResult> 
   }
 
   await prisma.supplier.update({
-    where: { id },
+    where: { id, userId: user.userId },
     data: { deletedAt: new Date() },
   });
 

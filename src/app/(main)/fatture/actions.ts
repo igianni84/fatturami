@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -56,8 +56,9 @@ export type InvoiceFormData = z.infer<typeof invoiceSchema>;
 // --- Fetch clients with VAT info for invoice form ---
 
 export async function getClientsForInvoice(): Promise<ClientOptionWithVat[]> {
+  const { userId } = await requireUser();
   const clients = await prisma.client.findMany({
-    where: { deletedAt: null },
+    where: { userId, deletedAt: null },
     select: {
       id: true,
       name: true,
@@ -145,7 +146,7 @@ export async function createInvoice(
 
   // Fetch client to determine VAT regime and disclaimer (exclude soft-deleted)
   const client = await prisma.client.findUnique({
-    where: { id: clientId, deletedAt: null },
+    where: { id: clientId, userId: user.userId, deletedAt: null },
     select: { vatRegime: true, vatNumber: true },
   });
 
@@ -156,13 +157,14 @@ export async function createInvoice(
   const disclaimer = generateDisclaimer(client.vatRegime, !!client.vatNumber);
   const number = await generateDocumentNumber("FTT", (prefix) =>
     prisma.invoice.findFirst({
-      where: { number: { startsWith: prefix } },
+      where: { userId: user.userId, number: { startsWith: prefix } },
       orderBy: { number: "desc" },
     })
   );
 
   await prisma.invoice.create({
     data: {
+      userId: user.userId,
       number,
       clientId,
       date: new Date(date),
@@ -212,11 +214,12 @@ export async function getInvoices(params: {
   pageSize?: number;
   status?: string;
 }): Promise<InvoiceListResult> {
+  const { userId } = await requireUser();
   const page = params.page || 1;
   const pageSize = params.pageSize || 10;
   const skip = (page - 1) * pageSize;
 
-  const where: Prisma.InvoiceWhereInput = {};
+  const where: Prisma.InvoiceWhereInput = { userId };
   if (params.status && params.status !== "tutti") {
     where.status = params.status as InvoiceStatus;
   }
@@ -293,7 +296,7 @@ export async function updateInvoiceStatus(
   };
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+    where: { id: invoiceId, userId: user.userId },
     select: { status: true },
   });
 
@@ -310,7 +313,7 @@ export async function updateInvoiceStatus(
   }
 
   await prisma.invoice.update({
-    where: { id: invoiceId },
+    where: { id: invoiceId, userId: user.userId },
     data: {
       status: newStatus as InvoiceStatus,
     },
@@ -330,7 +333,7 @@ export async function deleteInvoice(
   }
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+    where: { id: invoiceId, userId: user.userId },
     select: { status: true, creditNotes: { select: { id: true } } },
   });
 
@@ -342,7 +345,7 @@ export async function deleteInvoice(
     return { success: false, message: "Impossibile eliminare: la fattura ha note di credito collegate" };
   }
 
-  await prisma.invoice.delete({ where: { id: invoiceId } });
+  await prisma.invoice.delete({ where: { id: invoiceId, userId: user.userId } });
   return { success: true, message: "Fattura eliminata" };
 }
 
@@ -385,8 +388,9 @@ export interface InvoiceDetail {
 }
 
 export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
+  const { userId } = await requireUser();
   const invoice = await prisma.invoice.findUnique({
-    where: { id },
+    where: { id, userId },
     include: {
       client: {
         select: {
@@ -465,8 +469,9 @@ export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
 export async function getDefaultTaxRateForClient(
   clientId: string
 ): Promise<{ taxRateType: string; vatRegime: VatRegime } | null> {
+  const { userId } = await requireUser();
   const client = await prisma.client.findUnique({
-    where: { id: clientId, deletedAt: null },
+    where: { id: clientId, userId, deletedAt: null },
     select: { vatRegime: true, vatNumber: true },
   });
   if (!client) return null;
@@ -489,7 +494,7 @@ export async function convertQuoteToInvoice(
 
   // Fetch quote with lines and client info
   const quote = await prisma.quote.findUnique({
-    where: { id: quoteId },
+    where: { id: quoteId, userId: user.userId },
     include: {
       client: { select: { id: true, vatRegime: true, vatNumber: true, currency: true } },
       lines: { select: { description: true, quantity: true, unitPrice: true, taxRateId: true } },
@@ -506,7 +511,7 @@ export async function convertQuoteToInvoice(
 
   // Verify client is still active (not soft-deleted)
   const activeClient = await prisma.client.findUnique({
-    where: { id: quote.client.id, deletedAt: null },
+    where: { id: quote.client.id, userId: user.userId, deletedAt: null },
     select: { id: true },
   });
   if (!activeClient) {
@@ -517,7 +522,7 @@ export async function convertQuoteToInvoice(
   const disclaimer = generateDisclaimer(quote.client.vatRegime, !!quote.client.vatNumber);
   const number = await generateDocumentNumber("FTT", (prefix) =>
     prisma.invoice.findFirst({
-      where: { number: { startsWith: prefix } },
+      where: { userId: user.userId, number: { startsWith: prefix } },
       orderBy: { number: "desc" },
     })
   );
@@ -525,6 +530,7 @@ export async function convertQuoteToInvoice(
   // Create invoice from quote data
   const invoice = await prisma.invoice.create({
     data: {
+      userId: user.userId,
       number,
       clientId: quote.client.id,
       date: new Date(),
@@ -546,7 +552,7 @@ export async function convertQuoteToInvoice(
 
   // Update quote status to convertito
   await prisma.quote.update({
-    where: { id: quoteId },
+    where: { id: quoteId, userId: user.userId },
     data: { status: "convertito" },
   });
 
@@ -586,7 +592,7 @@ export async function addPayment(data: {
   const { invoiceId, amount, date, method, notes } = result.data;
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+    where: { id: invoiceId, userId: user.userId },
     include: {
       lines: { include: { taxRate: { select: { rate: true } } } },
       payments: { select: { amount: true } },
@@ -674,7 +680,7 @@ export async function deletePayment(
   if (!payment) return { success: false, message: "Pagamento non trovato" };
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: payment.invoiceId },
+    where: { id: payment.invoiceId, userId: user.userId },
     include: {
       lines: { include: { taxRate: { select: { rate: true } } } },
       payments: { select: { id: true, amount: true } },

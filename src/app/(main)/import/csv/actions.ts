@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 import { Decimal } from "@prisma/client/runtime/library";
 import { VatRegime, InvoiceStatus, PurchaseInvoiceStatus, ExpenseCategory } from "@prisma/client";
 import { detectVatRegime } from "@/lib/vat-regime";
@@ -115,7 +116,8 @@ async function findOrCreateClient(
   vatNumber: string,
   country: string,
   createdClientsMap: Map<string, string>,
-  companyCountry: string
+  companyCountry: string,
+  userId: string
 ): Promise<string> {
   const key = `${name.toLowerCase().trim()}|${vatNumber.toLowerCase().trim()}`;
 
@@ -128,6 +130,7 @@ async function findOrCreateClient(
   if (vatNumber) {
     existing = await prisma.client.findFirst({
       where: {
+        userId,
         vatNumber: { contains: vatNumber.trim() },
         deletedAt: null,
       },
@@ -136,6 +139,7 @@ async function findOrCreateClient(
   if (!existing) {
     existing = await prisma.client.findFirst({
       where: {
+        userId,
         name: { equals: name.trim() },
         deletedAt: null,
       },
@@ -151,6 +155,7 @@ async function findOrCreateClient(
   const vatRegime = country ? detectVatRegime(country, companyCountry) : "nazionale";
   const newClient = await prisma.client.create({
     data: {
+      userId,
       name: name.trim(),
       vatNumber: vatNumber?.trim() || "",
       country: country?.trim() || "ES",
@@ -166,7 +171,8 @@ async function findOrCreateSupplier(
   name: string,
   vatNumber: string,
   country: string,
-  createdSuppliersMap: Map<string, string>
+  createdSuppliersMap: Map<string, string>,
+  userId: string
 ): Promise<string> {
   const key = `${name.toLowerCase().trim()}|${vatNumber.toLowerCase().trim()}`;
 
@@ -179,6 +185,7 @@ async function findOrCreateSupplier(
   if (vatNumber) {
     existing = await prisma.supplier.findFirst({
       where: {
+        userId,
         vatNumber: { contains: vatNumber.trim() },
         deletedAt: null,
       },
@@ -187,6 +194,7 @@ async function findOrCreateSupplier(
   if (!existing) {
     existing = await prisma.supplier.findFirst({
       where: {
+        userId,
         name: { equals: name.trim() },
         deletedAt: null,
       },
@@ -201,6 +209,7 @@ async function findOrCreateSupplier(
   // Create new supplier
   const newSupplier = await prisma.supplier.create({
     data: {
+      userId,
       name: name.trim(),
       vatNumber: vatNumber?.trim() || "",
       country: country?.trim() || "",
@@ -227,6 +236,7 @@ export async function importCSV(
   mapping: FieldMapping,
   importType: ImportType
 ): Promise<ImportResult> {
+  const { userId } = await requireUser();
   const errors: ValidationError[] = [];
 
   const companyCountry = await getCompanyCountry();
@@ -351,10 +361,10 @@ export async function importCSV(
       const dueDate = dueDateStr ? parseDate(dueDateStr) : null;
 
       // Find or create client
-      const clientId = await findOrCreateClient(clientName, clientVat, clientCountry, createdClientsMap, companyCountry);
+      const clientId = await findOrCreateClient(clientName, clientVat, clientCountry, createdClientsMap, companyCountry, userId);
 
       // Get client's VAT regime for disclaimer
-      const client = await prisma.client.findUnique({ where: { id: clientId } });
+      const client = await prisma.client.findUnique({ where: { id: clientId, userId } });
       const vatRegime = client?.vatRegime || "nazionale";
       const disclaimer = generateDisclaimer(vatRegime);
 
@@ -378,7 +388,7 @@ export async function importCSV(
 
       // Check for duplicate invoice number
       const existingInvoice = await prisma.invoice.findUnique({
-        where: { number: invoiceNumber },
+        where: { userId_number: { userId, number: invoiceNumber } },
       });
 
       if (existingInvoice) {
@@ -394,6 +404,7 @@ export async function importCSV(
 
       await prisma.invoice.create({
         data: {
+          userId,
           number: invoiceNumber,
           clientId,
           date,
@@ -435,7 +446,7 @@ export async function importCSV(
       const date = parseDate(dateStr)!;
 
       // Find or create supplier
-      const supplierId = await findOrCreateSupplier(supplierName, supplierVat, supplierCountry, createdSuppliersMap);
+      const supplierId = await findOrCreateSupplier(supplierName, supplierVat, supplierCountry, createdSuppliersMap, userId);
 
       // Determine category
       const validCategories = Object.values(ExpenseCategory) as string[];
@@ -463,6 +474,7 @@ export async function importCSV(
       // Check for duplicate
       const existingPurchase = await prisma.purchaseInvoice.findFirst({
         where: {
+          userId,
           supplierId,
           number: invoiceNumber,
         },
@@ -480,6 +492,7 @@ export async function importCSV(
 
       await prisma.purchaseInvoice.create({
         data: {
+          userId,
           supplierId,
           number: invoiceNumber,
           date,

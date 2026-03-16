@@ -25,3 +25,9 @@ export async function getCurrentUser(): Promise<{
 
   return { userId: dbUser.id, email: dbUser.email };
 }
+
+export async function requireUser(): Promise<{ userId: string; email: string }> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Non autenticato");
+  return user;
+}

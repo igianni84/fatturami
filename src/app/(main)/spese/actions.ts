@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ExpenseCategory } from "@prisma/client";
@@ -88,11 +88,12 @@ export async function getExpenses(params: {
   dateTo?: string;
   deductible?: string;
 }): Promise<ExpenseListResult> {
+  const { userId } = await requireUser();
   const page = params.page || 1;
   const pageSize = params.pageSize || 10;
   const skip = (page - 1) * pageSize;
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { userId };
 
   if (params.category && params.category !== "tutte") {
     where.category = params.category as ExpenseCategory;
@@ -154,7 +155,7 @@ export async function deleteExpense(
   }
 
   const expense = await prisma.expense.findUnique({
-    where: { id },
+    where: { id, userId: user.userId },
     select: { id: true },
   });
 
@@ -162,7 +163,7 @@ export async function deleteExpense(
     return { success: false, message: "Spesa non trovata" };
   }
 
-  await prisma.expense.delete({ where: { id } });
+  await prisma.expense.delete({ where: { id, userId: user.userId } });
   return { success: true, message: "Spesa eliminata" };
 }
 
@@ -202,6 +203,7 @@ export async function createExpense(
 
   const expense = await prisma.expense.create({
     data: {
+      userId: user.userId,
       date: new Date(result.data.date),
       description: result.data.description,
       amount: new Decimal(result.data.amount),

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 // --- Types ---
 
@@ -64,6 +65,7 @@ function getPeriodRange(period: string): { start: Date; end: Date } {
 // --- Get dashboard data ---
 
 export async function getDashboardData(period: string): Promise<DashboardData> {
+  const { userId } = await requireUser();
   const { start, end } = getPeriodRange(period);
   const currentYear = new Date().getFullYear();
   const yearStart = new Date(currentYear, 0, 1);
@@ -82,6 +84,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     // Revenue invoices for the period
     prisma.invoice.findMany({
       where: {
+        userId,
         date: { gte: start, lte: end },
         status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       },
@@ -89,23 +92,25 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     }),
     // Purchase invoices for the period
     prisma.purchaseInvoice.findMany({
-      where: { date: { gte: start, lte: end } },
+      where: { userId, date: { gte: start, lte: end } },
       include: { lines: { include: { taxRate: true } } },
     }),
     // Expense aggregate for the period
     prisma.expense.aggregate({
-      where: { date: { gte: start, lte: end } },
+      where: { userId, date: { gte: start, lte: end } },
       _sum: { amount: true, taxAmount: true },
     }),
     // Overdue invoices count
     prisma.invoice.count({
       where: {
+        userId,
         status: { in: ["emessa", "inviata", "parzialmente_pagata"] },
         dueDate: { lt: new Date() },
       },
     }),
     // Recent invoices
     prisma.invoice.findMany({
+      where: { userId },
       orderBy: { date: "desc" },
       take: 5,
       include: {
@@ -115,6 +120,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     }),
     // Recent purchases
     prisma.purchaseInvoice.findMany({
+      where: { userId },
       orderBy: { date: "desc" },
       take: 5,
       include: {
@@ -125,6 +131,7 @@ export async function getDashboardData(period: string): Promise<DashboardData> {
     // Year invoices for chart
     prisma.invoice.findMany({
       where: {
+        userId,
         date: { gte: yearStart, lte: yearEnd },
         status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       },

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -48,8 +48,9 @@ export type QuoteFormData = z.infer<typeof quoteSchema>;
 // --- Fetch clients for dropdown ---
 
 export async function getClientsForSelect(): Promise<ClientOption[]> {
+  const { userId } = await requireUser();
   const clients = await prisma.client.findMany({
-    where: { deletedAt: null },
+    where: { userId, deletedAt: null },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -93,12 +94,14 @@ export async function getQuotes(params: {
   page?: number;
   pageSize?: number;
 }): Promise<QuoteListResult> {
+  const { userId } = await requireUser();
   const page = params.page || 1;
   const pageSize = params.pageSize || 10;
   const skip = (page - 1) * pageSize;
 
   const [quotes, totalCount] = await Promise.all([
     prisma.quote.findMany({
+      where: { userId },
       skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
@@ -109,7 +112,7 @@ export async function getQuotes(params: {
         },
       },
     }),
-    prisma.quote.count(),
+    prisma.quote.count({ where: { userId } }),
   ]);
 
   const result: QuoteListItem[] = quotes.map((q) => {
@@ -159,7 +162,7 @@ export async function updateQuoteStatus(
   };
 
   const quote = await prisma.quote.findUnique({
-    where: { id: quoteId },
+    where: { id: quoteId, userId: user.userId },
     select: { status: true },
   });
 
@@ -176,7 +179,7 @@ export async function updateQuoteStatus(
   }
 
   await prisma.quote.update({
-    where: { id: quoteId },
+    where: { id: quoteId, userId: user.userId },
     data: { status: newStatus as "bozza" | "inviato" | "accettato" | "rifiutato" | "scaduto" },
   });
 
@@ -194,7 +197,7 @@ export async function deleteQuote(
   }
 
   const quote = await prisma.quote.findUnique({
-    where: { id: quoteId },
+    where: { id: quoteId, userId: user.userId },
     select: { id: true },
   });
 
@@ -202,7 +205,7 @@ export async function deleteQuote(
     return { success: false, message: "Preventivo non trovato" };
   }
 
-  await prisma.quote.delete({ where: { id: quoteId } });
+  await prisma.quote.delete({ where: { id: quoteId, userId: user.userId } });
   return { success: true, message: "Preventivo eliminato" };
 }
 
@@ -233,7 +236,7 @@ export async function createQuote(
 
   // Validate client exists and is not soft-deleted
   const client = await prisma.client.findUnique({
-    where: { id: clientId, deletedAt: null },
+    where: { id: clientId, userId: user.userId, deletedAt: null },
     select: { id: true },
   });
   if (!client) {
@@ -242,13 +245,14 @@ export async function createQuote(
 
   const number = await generateDocumentNumber("PREV", (prefix) =>
     prisma.quote.findFirst({
-      where: { number: { startsWith: prefix } },
+      where: { userId: user.userId, number: { startsWith: prefix } },
       orderBy: { number: "desc" },
     })
   );
 
   await prisma.quote.create({
     data: {
+      userId: user.userId,
       number,
       clientId,
       date: new Date(date),

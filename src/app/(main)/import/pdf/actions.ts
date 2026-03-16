@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PurchaseInvoiceStatus, ExpenseCategory } from "@prisma/client";
 
@@ -35,6 +36,7 @@ export interface ImportPDFResult {
 }
 
 export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResult> {
+  const { userId } = await requireUser();
   const errors: { fileIndex: number; fileName: string; message: string }[] = [];
   let importedCount = 0;
   const createdSuppliersMap = new Map<string, string>();
@@ -83,6 +85,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
           if (item.supplierVatNumber) {
             existing = await prisma.supplier.findFirst({
               where: {
+                userId,
                 vatNumber: { contains: item.supplierVatNumber.trim() },
                 deletedAt: null,
               },
@@ -91,6 +94,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
           if (!existing && item.supplierName) {
             existing = await prisma.supplier.findFirst({
               where: {
+                userId,
                 name: { equals: item.supplierName.trim() },
                 deletedAt: null,
               },
@@ -102,6 +106,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
           } else {
             const newSupplier = await prisma.supplier.create({
               data: {
+                userId,
                 name: item.supplierName.trim(),
                 vatNumber: item.supplierVatNumber?.trim() || "",
                 country: "",
@@ -151,7 +156,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
       // Check for duplicates
       if (item.invoiceNumber) {
         const existing = await prisma.purchaseInvoice.findFirst({
-          where: { supplierId, number: invoiceNumber },
+          where: { userId, supplierId, number: invoiceNumber },
         });
         if (existing) {
           errors.push({
@@ -165,6 +170,7 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
 
       await prisma.purchaseInvoice.create({
         data: {
+          userId,
           supplierId,
           number: invoiceNumber,
           date,

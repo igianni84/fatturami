@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 export interface VATReportData {
   year: number;
@@ -37,11 +38,13 @@ function getQuarterRange(year: number, quarter: number): { start: Date; end: Dat
 }
 
 export async function getVATReport(year: number, quarter: number): Promise<VATReportData> {
+  const { userId } = await requireUser();
   const { start, end } = getQuarterRange(year, quarter);
 
   // IVA Repercutida: VAT on issued invoices to Spanish (nazionale) clients only
   const domesticInvoices = await prisma.invoice.findMany({
     where: {
+      userId,
       date: { gte: start, lte: end },
       status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       client: { vatRegime: "nazionale" },
@@ -54,6 +57,7 @@ export async function getVATReport(year: number, quarter: number): Promise<VATRe
   // IVA Soportada Deducible: deductible VAT on purchases
   const purchaseInvoices = await prisma.purchaseInvoice.findMany({
     where: {
+      userId,
       date: { gte: start, lte: end },
     },
     include: {
@@ -64,6 +68,7 @@ export async function getVATReport(year: number, quarter: number): Promise<VATRe
   // Intra-EU operations (for Modelo 349 summary)
   const intraEUInvoices = await prisma.invoice.findMany({
     where: {
+      userId,
       date: { gte: start, lte: end },
       status: { in: ["emessa", "inviata", "parzialmente_pagata", "pagata"] },
       client: { vatRegime: "intraUE" },
