@@ -32,6 +32,7 @@ async function copyPdfToUploads(
 
 // --- Helper: find or create supplier ---
 async function findOrCreateSupplier(
+  userId: string,
   name: string,
   country: string,
   category: ExpenseCategory,
@@ -47,6 +48,7 @@ async function findOrCreateSupplier(
   }
   supplier = await prisma.supplier.create({
     data: {
+      userId,
       name,
       vatNumber,
       country,
@@ -80,6 +82,10 @@ interface ExpenseEntry {
 
 async function main() {
   console.log("=== IMPORT SPESE 2026 ===\n");
+
+  // Get the first user (single-tenant import script)
+  const user = await prisma.user.findFirstOrThrow();
+  console.log(`Using user: ${user.email} (${user.id})\n`);
 
   // =============================================
   // 1. CREATE/CHECK TAX RATES
@@ -118,64 +124,64 @@ async function main() {
   const supplierIds: Record<string, string> = {};
 
   supplierIds["padrone"] = await findOrCreateSupplier(
-    "Padrone di casa", "ES", ExpenseCategory.altro,
+    user.id, "Padrone di casa", "ES", ExpenseCategory.altro,
     "", { address: "CR Malilla 23 24", city: "Valencia" }
   );
   supplierIds["redi"] = await findOrCreateSupplier(
-    "Redi", "ES", ExpenseCategory.telecomunicazioni
+    user.id, "Redi", "ES", ExpenseCategory.telecomunicazioni
   );
   supplierIds["ploi"] = await findOrCreateSupplier(
-    "Ploi", "NL", ExpenseCategory.software
+    user.id, "Ploi", "NL", ExpenseCategory.software
   );
   supplierIds["contabo"] = await findOrCreateSupplier(
-    "Contabo", "DE", ExpenseCategory.software
+    user.id, "Contabo", "DE", ExpenseCategory.software
   );
   supplierIds["wizzair"] = await findOrCreateSupplier(
-    "Wizzair", "HU", ExpenseCategory.viaggi
+    user.id, "Wizzair", "HU", ExpenseCategory.viaggi
   );
   supplierIds["ia_spiegata"] = await findOrCreateSupplier(
-    "IA Spiegata Semplice s.r.l.", "IT", ExpenseCategory.servizi_professionali,
+    user.id, "IA Spiegata Semplice s.r.l.", "IT", ExpenseCategory.servizi_professionali,
     "08717290723", { address: "Claustro Santoro Tubito 15", city: "Altamura (BA)", email: "michele@iaspiegatasemplice.it" }
   );
   supplierIds["ryanair"] = await findOrCreateSupplier(
-    "Ryanair", "IE", ExpenseCategory.viaggi
+    user.id, "Ryanair", "IE", ExpenseCategory.viaggi
   );
   supplierIds["endesa"] = await findOrCreateSupplier(
-    "Endesa Energia S.A.", "ES", ExpenseCategory.altro,
+    user.id, "Endesa Energia S.A.", "ES", ExpenseCategory.altro,
     "A81948077", { address: "C/Ribera del Loira 60", city: "Madrid" }
   );
   supplierIds["incogni"] = await findOrCreateSupplier(
-    "Incogni Inc.", "US", ExpenseCategory.software
+    user.id, "Incogni Inc.", "US", ExpenseCategory.software
   );
   supplierIds["commercialista"] = await findOrCreateSupplier(
-    "Commercialista", "ES", ExpenseCategory.servizi_professionali
+    user.id, "Commercialista", "ES", ExpenseCategory.servizi_professionali
   );
   supplierIds["the5ers"] = await findOrCreateSupplier(
-    "The5ers", "IL", ExpenseCategory.software
+    user.id, "The5ers", "IL", ExpenseCategory.software
   );
   supplierIds["fundingpips"] = await findOrCreateSupplier(
-    "FundingPips", "AE", ExpenseCategory.software
+    user.id, "FundingPips", "AE", ExpenseCategory.software
   );
   supplierIds["amazon"] = await findOrCreateSupplier(
-    "Amazon", "LU", ExpenseCategory.hardware
+    user.id, "Amazon", "LU", ExpenseCategory.hardware
   );
   supplierIds["seguridad"] = await findOrCreateSupplier(
-    "Seguridad Social", "ES", ExpenseCategory.altro
+    user.id, "Seguridad Social", "ES", ExpenseCategory.altro
   );
   supplierIds["aruba"] = await findOrCreateSupplier(
-    "Aruba", "IT", ExpenseCategory.software
+    user.id, "Aruba", "IT", ExpenseCategory.software
   );
   supplierIds["hetzner"] = await findOrCreateSupplier(
-    "Hetzner", "DE", ExpenseCategory.software
+    user.id, "Hetzner", "DE", ExpenseCategory.software
   );
   supplierIds["register"] = await findOrCreateSupplier(
-    "Register", "IT", ExpenseCategory.software
+    user.id, "Register", "IT", ExpenseCategory.software
   );
   supplierIds["fundednext"] = await findOrCreateSupplier(
-    "FundedNext", "AE", ExpenseCategory.software
+    user.id, "FundedNext", "AE", ExpenseCategory.software
   );
   supplierIds["spem"] = await findOrCreateSupplier(
-    "Spem Espanol Sin Atascos", "ES", ExpenseCategory.servizi_professionali
+    user.id, "Spem Espanol Sin Atascos", "ES", ExpenseCategory.servizi_professionali
   );
 
   console.log("");
@@ -478,6 +484,7 @@ async function main() {
 
     await prisma.purchaseInvoice.create({
       data: {
+        userId: user.id,
         supplierId,
         number: exp.invoiceNumber,
         date: new Date(exp.date),

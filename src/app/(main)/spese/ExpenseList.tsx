@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/DataTable";
-import { ExpenseListItem, deleteExpense } from "./actions";
+import { ExpenseListItem, deleteExpense, getExpenseFileUrl } from "./actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -228,6 +228,16 @@ export default function ExpenseList({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {item.hasFile && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const url = await getExpenseFileUrl(item.id);
+                    if (url) window.open(url, "_blank");
+                  }}
+                >
+                  Scarica allegato
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteConfirm(item)}

@@ -5,9 +5,11 @@ import { getCurrentUser, requireUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ExpenseCategory } from "@prisma/client";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { validateFileType } from "@/lib/file-validation";
+import {
+  uploadFile as storageUpload,
+  getSignedUrl,
+  deleteFile as storageDelete,
+} from "@/lib/supabase/storage";
 import { getFieldErrors } from "@/lib/utils";
 
 // --- Types ---
@@ -32,35 +34,6 @@ const expenseSchema = z.object({
 
 export type ExpenseFormData = z.infer<typeof expenseSchema>;
 
-// --- Upload file ---
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-async function uploadFile(file: File): Promise<string> {
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error("File troppo grande. Massimo 10MB consentiti.");
-  }
-  const fileValidation = await validateFileType(file);
-  if (!fileValidation.valid) {
-    throw new Error(fileValidation.error);
-  }
-  const uploadsDir = join(process.cwd(), "uploads", "spese");
-  await mkdir(uploadsDir, { recursive: true });
-
-  const timestamp = Date.now();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const fileName = `${timestamp}_${safeName}`;
-  const filePath = join(uploadsDir, fileName);
-
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  await writeFile(filePath, buffer);
-
-  return `uploads/spese/${fileName}`;
-}
-
-// --- Create expense ---
-
 // --- Types for expense list ---
 
 export interface ExpenseListItem {
@@ -70,6 +43,7 @@ export interface ExpenseListItem {
   category: string;
   amount: number;
   deductible: boolean;
+  hasFile: boolean;
 }
 
 export interface ExpenseListResult {
@@ -135,6 +109,7 @@ export async function getExpenses(params: {
     category: e.category,
     amount: Number(e.amount),
     deductible: e.deductible,
+    hasFile: !!e.filePath,
   }));
 
   return {
@@ -156,11 +131,15 @@ export async function deleteExpense(
 
   const expense = await prisma.expense.findUnique({
     where: { id, userId: user.userId },
-    select: { id: true },
+    select: { id: true, filePath: true },
   });
 
   if (!expense) {
     return { success: false, message: "Spesa non trovata" };
+  }
+
+  if (expense.filePath) {
+    await storageDelete(expense.filePath);
   }
 
   await prisma.expense.delete({ where: { id, userId: user.userId } });
@@ -198,7 +177,7 @@ export async function createExpense(
 
   let filePath: string | null = null;
   if (file && file.size > 0) {
-    filePath = await uploadFile(file);
+    filePath = await storageUpload(file, "spese", user.userId);
   }
 
   const expense = await prisma.expense.create({
@@ -215,4 +194,19 @@ export async function createExpense(
   });
 
   return { success: true, id: expense.id };
+}
+
+// --- Get file signed URL ---
+
+export async function getExpenseFileUrl(
+  id: string
+): Promise<string | null> {
+  const { userId } = await requireUser();
+  const expense = await prisma.expense.findUnique({
+    where: { id, userId },
+    select: { filePath: true },
+  });
+
+  if (!expense?.filePath) return null;
+  return getSignedUrl(expense.filePath);
 }

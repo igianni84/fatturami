@@ -1,4 +1,4 @@
-import { getPurchaseInvoice } from "../actions";
+import { getPurchaseInvoice, getPurchaseInvoiceFileUrl } from "../actions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/formatting";
 import { purchaseInvoiceStatusLabels as statusLabels, expenseCategoryLabels as categoryLabels } from "@/lib/labels";
+import { FileAttachmentView } from "@/components/FileAttachmentView";
 
 export const dynamic = "force-dynamic";
 
@@ -178,6 +179,24 @@ export default async function PurchaseInvoiceDetailPage({
           </TableFooter>
         </Table>
       </Card>
+
+      {/* Attachment */}
+      {invoice.filePath && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold uppercase text-muted-foreground">
+              Allegato
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FileAttachmentView
+              entityId={invoice.id}
+              filePath={invoice.filePath}
+              getFileUrl={getPurchaseInvoiceFileUrl}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notes */}
       {invoice.notes && (

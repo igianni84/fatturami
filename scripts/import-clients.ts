@@ -36,6 +36,10 @@ function cleanPhone(phone: string): string {
 }
 
 async function main() {
+  // Get the first user (single-tenant import script)
+  const user = await prisma.user.findFirstOrThrow();
+  console.log(`Using user: ${user.email} (${user.id})\n`);
+
   // Read company country from settings
   const company = await prisma.company.findFirst({ select: { country: true } });
   const companyCountry = company?.country || "ES";
@@ -109,6 +113,7 @@ async function main() {
     try {
       await prisma.client.create({
         data: {
+          userId: user.id,
           name,
           vatNumber,
           fiscalCode,

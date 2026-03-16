@@ -6,6 +6,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("=== IMPORT INCASSI 2026 ===\n");
 
+  // Get the first user (single-tenant import script)
+  const user = await prisma.user.findFirstOrThrow();
+  console.log(`Using user: ${user.email} (${user.id})\n`);
+
   // --- 1. Create IVA 22% tax rate if not exists ---
   console.log("1. Checking/creating IVA 22% tax rate...");
   const iva22Id = "seed-standard-IT-22";
@@ -37,6 +41,7 @@ async function main() {
   if (!crurated) {
     crurated = await prisma.client.create({
       data: {
+        userId: user.id,
         name: "Crurated Limited",
         vatNumber: "376832951",
         fiscalCode: "",
@@ -62,6 +67,7 @@ async function main() {
   if (!innovedge) {
     innovedge = await prisma.client.create({
       data: {
+        userId: user.id,
         name: "Innovedge s.r.l.",
         vatNumber: "10596591213",
         fiscalCode: "",
@@ -239,7 +245,7 @@ async function main() {
   for (const inv of invoices) {
     // Check if already imported
     const existing = await prisma.invoice.findUnique({
-      where: { number: inv.number },
+      where: { userId_number: { userId: user.id, number: inv.number } },
     });
     if (existing) {
       console.log(`   -> ${inv.number} gia' presente, skip.`);
@@ -248,6 +254,7 @@ async function main() {
 
     await prisma.invoice.create({
       data: {
+        userId: user.id,
         number: inv.number,
         clientId: inv.clientId,
         date: inv.date,

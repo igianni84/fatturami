@@ -5,9 +5,11 @@ import { getCurrentUser, requireUser } from "@/lib/auth";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ExpenseCategory, PurchaseInvoiceStatus, Prisma } from "@prisma/client";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { validateFileType } from "@/lib/file-validation";
+import {
+  uploadFile as storageUpload,
+  getSignedUrl,
+  deleteFile as storageDelete,
+} from "@/lib/supabase/storage";
 import { getFieldErrors } from "@/lib/utils";
 
 // --- Types ---
@@ -71,33 +73,6 @@ export async function getTaxRates(): Promise<TaxRateOption[]> {
   return getTaxRatesForCountry();
 }
 
-// --- Upload file ---
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-async function uploadFile(file: File): Promise<string> {
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error("File troppo grande. Massimo 10MB consentiti.");
-  }
-  const fileValidation = await validateFileType(file);
-  if (!fileValidation.valid) {
-    throw new Error(fileValidation.error);
-  }
-  const uploadsDir = join(process.cwd(), "uploads", "acquisti");
-  await mkdir(uploadsDir, { recursive: true });
-
-  const timestamp = Date.now();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const fileName = `${timestamp}_${safeName}`;
-  const filePath = join(uploadsDir, fileName);
-
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  await writeFile(filePath, buffer);
-
-  return `uploads/acquisti/${fileName}`;
-}
-
 // --- Create purchase invoice ---
 
 export async function createPurchaseInvoice(
@@ -141,7 +116,7 @@ export async function createPurchaseInvoice(
 
   let filePath: string | null = null;
   if (file && file.size > 0) {
-    filePath = await uploadFile(file);
+    filePath = await storageUpload(file, "acquisti", user.userId);
   }
 
   const purchaseInvoice = await prisma.purchaseInvoice.create({
@@ -329,15 +304,34 @@ export async function deletePurchaseInvoice(
 
   const pi = await prisma.purchaseInvoice.findUnique({
     where: { id, userId: user.userId },
-    select: { id: true },
+    select: { id: true, filePath: true },
   });
 
   if (!pi) {
     return { success: false, message: "Fattura di acquisto non trovata" };
   }
 
+  if (pi.filePath) {
+    await storageDelete(pi.filePath);
+  }
+
   await prisma.purchaseInvoice.delete({ where: { id, userId: user.userId } });
   return { success: true, message: "Fattura di acquisto eliminata" };
+}
+
+// --- Get file signed URL ---
+
+export async function getPurchaseInvoiceFileUrl(
+  id: string
+): Promise<string | null> {
+  const { userId } = await requireUser();
+  const pi = await prisma.purchaseInvoice.findUnique({
+    where: { id, userId },
+    select: { filePath: true },
+  });
+
+  if (!pi?.filePath) return null;
+  return getSignedUrl(pi.filePath);
 }
 
 // --- Update purchase invoice status ---
