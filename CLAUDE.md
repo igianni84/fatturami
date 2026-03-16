@@ -66,6 +66,7 @@
 - **Validation:** Zod 4.3.6
 - **AI:** @anthropic-ai/sdk 0.71.2 (estrazione dati da PDF via vision)
 - **Charts:** Recharts 3.7.0
+- **Billing:** Stripe 20.x (Checkout + Customer Portal, webhook-driven)
 - **Import:** PapaParse 5.5.3 (CSV parsing)
 - **Containerization:** Docker multi-stage (node:20-alpine), Docker Compose
 - **Quality:** ESLint 9.39.2, TypeScript strict mode (no test framework)
@@ -89,6 +90,8 @@
 | `/dashboard` | Dashboard | Metriche periodo (mese/trimestre/anno), grafici Recharts | ✅ Done |
 | `/api/pdf/*` | PDF API | Generazione PDF fatture, preventivi, note credito | ✅ Done |
 | `/api/extract` | Estrazione AI | OCR/estrazione dati da PDF/immagini via Claude vision | ✅ Done |
+| `/abbonamento` | Billing | Dashboard abbonamento, Stripe Checkout/Portal, piano Free/Pro | ✅ Done |
+| `/api/stripe/webhook` | Stripe Webhook | Gestione eventi Stripe (checkout, rinnovi, cancellazione) | ✅ Done |
 
 ### Architecture Patterns
 - **App Router:** Next.js App Router con route group `(main)` per rotte protette, `login` pubblica
@@ -193,11 +196,14 @@ Le seguenti skill sono installate globalmente in `~/.claude/skills/` e DEVONO es
 
 ### Known Gotchas
 - `ANTHROPIC_API_KEY` presente in `.env.example` ma non in `.env` — necessario aggiungerlo per le feature AI
+- `SUPABASE_SERVICE_ROLE_KEY` necessaria per Supabase Storage (upload/download file) — admin client in `src/lib/supabase/admin.ts`
 - Prisma Decimal: i campi `Decimal` vanno convertiti con `Number()` lato client, altrimenti errori di serializzazione
 - `searchParams` e `params` nelle pagine Next.js 16 sono `Promise` — devono essere `await`-ati
 - Dev server: `npm run dev` sulla porta 3000, configurato anche in `.claude/launch.json`
 - Seeding DB: `npx prisma db seed` usa `tsx prisma/seed.ts`
 - Migrazioni Prisma: 1 baseline PostgreSQL (`0_init` — schema completo)
 - Directory `INCASSI/` e `SPESE/` contengono dati sorgente per import — non committare
-- Directory `uploads/` per file caricati (fatture acquisto, spese) — persistita via Docker volume
+- File caricati (acquisti/spese) salvati su Supabase Storage (bucket `documents`, paths `{userId}/{folder}/`). Legacy `uploads/` paths in DB = file locali pre-migrazione (graceful degradation, no download)
+- Stripe env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_YEARLY`, `NEXT_PUBLIC_APP_URL` — necessarie per billing. Webhook locale: `stripe listen --forward-to localhost:3000/api/stripe/webhook`
+- Billing gate: solo la transizione bozza→emessa controlla il limite free tier (10 fatture). Draft illimitate.
 - Nessun framework di test configurato — verificare via typecheck (`npm run typecheck`) e ESLint (`npm run lint`)

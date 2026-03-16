@@ -70,7 +70,14 @@ export default function InvoiceList({
   };
 
   const handleStatusChange = async (invoiceId: string, newStatus: string) => {
-    await updateInvoiceStatus(invoiceId, newStatus);
+    const result = await updateInvoiceStatus(invoiceId, newStatus);
+    if (!result.success) {
+      toast.error(result.message || "Errore durante l'aggiornamento dello stato", {
+        action: result.message?.includes("piano gratuito")
+          ? { label: "Passa a Pro", onClick: () => router.push("/abbonamento") }
+          : undefined,
+      });
+    }
     router.refresh();
   };
 

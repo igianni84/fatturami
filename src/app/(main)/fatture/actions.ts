@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireUser } from "@/lib/auth";
 import { generateDocumentNumber } from "@/lib/document-numbers";
+import { canUserEmitInvoice } from "@/lib/billing";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { VatRegime, InvoiceStatus, Prisma } from "@prisma/client";
@@ -290,6 +291,17 @@ export async function updateInvoiceStatus(
       success: false,
       message: `Transizione non consentita: ${invoice.status} → ${newStatus}`,
     };
+  }
+
+  // Billing gate: check free tier limit when emitting
+  if (newStatus === "emessa") {
+    const canEmit = await canUserEmitInvoice(user.userId);
+    if (!canEmit) {
+      return {
+        success: false,
+        message: "Hai raggiunto il limite di 10 fatture del piano gratuito. Passa a Pro per continuare.",
+      };
+    }
   }
 
   await prisma.invoice.update({

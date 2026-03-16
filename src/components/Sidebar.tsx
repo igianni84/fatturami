@@ -48,6 +48,7 @@ function getNavItems(country?: string): NavItem[] {
       ],
     },
     { label: "Impostazioni", href: "/impostazioni" },
+    { label: "Abbonamento", href: "/abbonamento" },
   ];
 }
 

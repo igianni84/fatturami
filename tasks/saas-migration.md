@@ -8,8 +8,8 @@
 | 1 | Supabase Auth (sostituisce JWT custom) | ✅ Completata | 2026-03-16 |
 | 2 | Isolamento tenant (userId su tutti i modelli) | ✅ Completata | 2026-03-16 |
 | 3 | Onboarding + sistema fiscale IT/ES | ✅ Completata | 2026-03-16 |
-| 4 | Import Fatture in Cloud + Supabase Storage | ⬜ Da fare | — |
-| 5 | Stripe billing + limiti fatture | ⬜ Da fare | — |
+| 4 | Supabase Storage + File Viewing | ✅ Completata | 2026-03-16 |
+| 5 | Stripe billing + limiti fatture | ✅ Completata | 2026-03-16 |
 | 6 | SDI fatturazione elettronica IT | ⬜ Da fare | — |
 | 7 | Landing page + documentazione | ⬜ Da fare | — |
 
@@ -17,8 +17,8 @@
 
 ```
 Fase 0 ✅ → Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 6
-                              → Fase 4
-                              → Fase 5
+                              → Fase 4 ✅
+                              → Fase 5 ✅
                               → Fase 7
 ```
 
