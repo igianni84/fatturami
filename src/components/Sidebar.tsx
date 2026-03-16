@@ -102,7 +102,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
-  const stableOnClose = useCallback(onClose, [onClose]);
+  const stableOnClose = useCallback(() => onClose(), [onClose]);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {

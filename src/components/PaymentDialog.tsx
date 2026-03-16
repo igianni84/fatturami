@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -73,21 +73,40 @@ export function PaymentDialog({
   totalPaid,
   currency,
 }: PaymentDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false}>
+        {open && (
+          <PaymentForm
+            onOpenChange={onOpenChange}
+            onConfirm={onConfirm}
+            loading={loading}
+            invoiceNumber={invoiceNumber}
+            invoiceTotal={invoiceTotal}
+            totalPaid={totalPaid}
+            currency={currency}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PaymentForm({
+  onOpenChange,
+  onConfirm,
+  loading,
+  invoiceNumber,
+  invoiceTotal,
+  totalPaid,
+  currency,
+}: Omit<PaymentDialogProps, "open">) {
   const remaining = invoiceTotal - totalPaid;
 
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState("");
-  const [method, setMethod] = useState("");
+  const [amount, setAmount] = useState(String(roundTwo(remaining)));
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [method, setMethod] = useState(getLastPaymentMethod);
   const [notes, setNotes] = useState("");
-
-  useEffect(() => {
-    if (open) {
-      setAmount(String(roundTwo(remaining)));
-      setDate(new Date().toISOString().split("T")[0]);
-      setMethod(getLastPaymentMethod());
-      setNotes("");
-    }
-  }, [open, remaining]);
 
   const parsedAmount = parseFloat(amount);
   const isValid =
@@ -109,105 +128,103 @@ export function PaymentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false}>
-        <DialogHeader>
-          <DialogTitle>Registra pagamento</DialogTitle>
-          <DialogDescription>
-            {invoiceNumber
-              ? `Registra un pagamento per la fattura ${invoiceNumber}.`
-              : "Registra un pagamento."}
-            {" "}Saldo rimanente: {formatCurrency(remaining, currency)}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="payment-amount">Importo</Label>
-            <Input
-              id="payment-amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={remaining + 0.01}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="mt-1.5"
-            />
-            <div className="flex gap-2 mt-2">
-              {fractions.map((f) => {
-                const val = roundTwo(remaining * f.factor);
-                const isActive = parsedAmount === val;
-                return (
-                  <Button
-                    key={f.label}
-                    type="button"
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setAmount(String(val))}
-                  >
-                    {f.label}
-                    <span className="hidden sm:inline ml-1 text-[10px] opacity-70">
-                      {formatCurrency(val, currency)}
-                    </span>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="payment-date">Data</Label>
-            <Input
-              id="payment-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="payment-method">Metodo di pagamento</Label>
-            <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger id="payment-method" className="mt-1.5">
-                <SelectValue placeholder="Seleziona metodo..." />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="payment-notes">Note</Label>
-            <Textarea
-              id="payment-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Note opzionali..."
-              rows={2}
-              className="mt-1.5"
-            />
+    <>
+      <DialogHeader>
+        <DialogTitle>Registra pagamento</DialogTitle>
+        <DialogDescription>
+          {invoiceNumber
+            ? `Registra un pagamento per la fattura ${invoiceNumber}.`
+            : "Registra un pagamento."}
+          {" "}Saldo rimanente: {formatCurrency(remaining, currency)}
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        <div>
+          <Label htmlFor="payment-amount">Importo</Label>
+          <Input
+            id="payment-amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            max={remaining + 0.01}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="mt-1.5"
+          />
+          <div className="flex gap-2 mt-2">
+            {fractions.map((f) => {
+              const val = roundTwo(remaining * f.factor);
+              const isActive = parsedAmount === val;
+              return (
+                <Button
+                  key={f.label}
+                  type="button"
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => setAmount(String(val))}
+                >
+                  {f.label}
+                  <span className="hidden sm:inline ml-1 text-[10px] opacity-70">
+                    {formatCurrency(val, currency)}
+                  </span>
+                </Button>
+              );
+            })}
           </div>
         </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-          >
-            Annulla
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={loading || !isValid}
-          >
-            {loading ? "Attendere..." : "Conferma"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div>
+          <Label htmlFor="payment-date">Data</Label>
+          <Input
+            id="payment-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="mt-1.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="payment-method">Metodo di pagamento</Label>
+          <Select value={method} onValueChange={setMethod}>
+            <SelectTrigger id="payment-method" className="mt-1.5">
+              <SelectValue placeholder="Seleziona metodo..." />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYMENT_METHODS.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="payment-notes">Note</Label>
+          <Textarea
+            id="payment-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Note opzionali..."
+            rows={2}
+            className="mt-1.5"
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={loading}
+        >
+          Annulla
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={loading || !isValid}
+        >
+          {loading ? "Attendere..." : "Conferma"}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

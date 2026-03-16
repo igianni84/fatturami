@@ -21,7 +21,10 @@ services:
     environment:
       DATABASE_URL: "postgresql://invoicing:invoicing@db:5432/invoicing"
       DIRECT_URL: "postgresql://invoicing:invoicing@db:5432/invoicing"
-      JWT_SECRET: "${JWT_SECRET}"
+      SUPABASE_URL: "${SUPABASE_URL}"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
+      NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL}"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
     depends_on:
       - db
     volumes:

@@ -2,7 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { getCurrentUser, verifyPassword, hashPassword } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit";
 import { getFieldErrors } from "@/lib/utils";
 
@@ -131,32 +132,34 @@ export async function changePassword(
     return { success: false, message: "Utente non autenticato" };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: currentUser.userId },
+  const supabase = await createClient();
+
+  // Verify current password by attempting sign-in
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: currentUser.email,
+    password: parsed.data.currentPassword,
   });
 
-  if (!user) {
-    return { success: false, message: "Utente non trovato" };
-  }
-
-  const isValid = await verifyPassword(parsed.data.currentPassword, user.password);
-  if (!isValid) {
+  if (signInError) {
     return {
       success: false,
       errors: { currentPassword: ["La password attuale non è corretta"] },
     };
   }
 
-  const hashedPassword = await hashPassword(parsed.data.newPassword);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { password: hashedPassword },
+  // Update password via Supabase
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: parsed.data.newPassword,
   });
 
+  if (updateError) {
+    return { success: false, message: "Errore nell'aggiornamento della password" };
+  }
+
   await logAuditEvent({
-    userId: user.id,
+    userId: currentUser.userId,
     action: "PASSWORD_CHANGE",
-    details: { email: user.email },
+    details: { email: currentUser.email },
   });
 
   return { success: true, message: "Password aggiornata con successo" };

@@ -1,7 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { verifyPassword, createToken, setAuthCookie } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { logAuditEvent } from "@/lib/audit";
 import { loginRateLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -35,31 +34,20 @@ export async function login(
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-  // Always call verifyPassword to prevent timing-based user enumeration
-  const isValid = await verifyPassword(
-    password,
-    user?.password || "$2a$12$invalidhashplaceholdervalue.placeholder"
-  );
-
-  if (!user || !isValid) {
+  if (error) {
     await logAuditEvent({
       action: "LOGIN_FAILURE",
-      details: { email: parsed.data.email },
+      details: { email },
     });
     return { success: false, error: "Email o password non corretta" };
   }
 
-  const token = await createToken(user.id, user.email);
-  await setAuthCookie(token);
-
   await logAuditEvent({
-    userId: user.id,
     action: "LOGIN_SUCCESS",
-    details: { email: parsed.data.email },
+    details: { email },
   });
 
   return { success: true };

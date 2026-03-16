@@ -10,7 +10,10 @@ import { useEffect, useRef } from "react";
  */
 export function useUnsavedChanges(isDirty: boolean) {
   const dirtyRef = useRef(isDirty);
-  dirtyRef.current = isDirty;
+
+  useEffect(() => {
+    dirtyRef.current = isDirty;
+  }, [isDirty]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {

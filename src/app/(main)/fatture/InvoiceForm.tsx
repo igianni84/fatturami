@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUnsavedChanges } from "@/lib/hooks/useUnsavedChanges";
 import {
@@ -92,31 +92,29 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
   }
 
   // When client changes, auto-set currency and tax rates on lines
-  useEffect(() => {
-    if (!selectedClient) return;
+  function handleClientChange(newClientId: string) {
+    setClientId(newClientId);
+    const client = clients.find((c) => c.id === newClientId);
+    if (!client) return;
 
-    // Set client's preferred currency
-    if (selectedClient.currency) {
-      setCurrency(selectedClient.currency);
-      if (selectedClient.currency === "EUR") {
+    if (client.currency) {
+      setCurrency(client.currency);
+      if (client.currency === "EUR") {
         setExchangeRate(1);
       }
     }
 
-    // Determine the default tax rate type for this client
     const defaultType = getDefaultTaxRateType(
-      selectedClient.vatRegime,
-      !!selectedClient.vatNumber
+      client.vatRegime,
+      !!client.vatNumber
     );
-
-    // Find the matching tax rate
     const matchingRate = taxRates.find((r) => r.type === defaultType);
     if (matchingRate) {
       setLines((prev) =>
         prev.map((l) => ({ ...l, taxRateId: matchingRate.id }))
       );
     }
-  }, [clientId, selectedClient, taxRates]);
+  }
 
   function getTaxRate(taxRateId: string): number {
     const rate = taxRates.find((r) => r.id === taxRateId);
@@ -218,7 +216,7 @@ export default function InvoiceForm({ clients, taxRates }: InvoiceFormProps) {
           <Label className="mb-1">Cliente *</Label>
           <Select
             value={clientId || undefined}
-            onValueChange={(value) => setClientId(value)}
+            onValueChange={handleClientChange}
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleziona cliente..." />

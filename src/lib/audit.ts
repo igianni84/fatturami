@@ -6,7 +6,10 @@ export type AuditAction =
   | "LOGIN_FAILURE"
   | "LOGIN_RATE_LIMITED"
   | "PASSWORD_CHANGE"
-  | "AUTH_FAILURE";
+  | "AUTH_FAILURE"
+  | "REGISTRATION_SUCCESS"
+  | "REGISTRATION_FAILURE"
+  | "REGISTRATION_RATE_LIMITED";
 
 export async function logAuditEvent(params: {
   userId?: string;

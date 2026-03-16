@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,13 @@ export default function LoginForm() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Accesso in corso..." : "Accedi"}
               </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Non hai un account?{" "}
+                <Link href="/registrati" className="text-primary hover:underline">
+                  Registrati
+                </Link>
+              </p>
             </form>
           </CardContent>
         </Card>
