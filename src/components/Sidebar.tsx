@@ -15,39 +15,41 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/" },
-  { label: "Fatture", href: "/fatture" },
-  { label: "Preventivi", href: "/preventivi" },
-  { label: "Note Credito", href: "/note-credito" },
-  { label: "Acquisti", href: "/acquisti" },
-  { label: "Spese", href: "/spese" },
-  {
-    label: "Anagrafiche",
-    href: "/anagrafiche",
-    children: [
-      { label: "Clienti", href: "/anagrafiche/clienti" },
-      { label: "Fornitori", href: "/anagrafiche/fornitori" },
-    ],
-  },
-  {
-    label: "Importazioni",
-    href: "/import",
-    children: [
-      { label: "CSV", href: "/import/csv" },
-      { label: "PDF", href: "/import/pdf" },
-    ],
-  },
-  {
-    label: "Fiscale",
-    href: "/fiscale",
-    children: [
-      { label: "IVA", href: "/fiscale/iva" },
-      { label: "IRPF", href: "/fiscale/irpf" },
-    ],
-  },
-  { label: "Impostazioni", href: "/impostazioni" },
-];
+function getNavItems(country?: string): NavItem[] {
+  return [
+    { label: "Dashboard", href: "/" },
+    { label: "Fatture", href: "/fatture" },
+    { label: "Preventivi", href: "/preventivi" },
+    { label: "Note Credito", href: "/note-credito" },
+    { label: "Acquisti", href: "/acquisti" },
+    { label: "Spese", href: "/spese" },
+    {
+      label: "Anagrafiche",
+      href: "/anagrafiche",
+      children: [
+        { label: "Clienti", href: "/anagrafiche/clienti" },
+        { label: "Fornitori", href: "/anagrafiche/fornitori" },
+      ],
+    },
+    {
+      label: "Importazioni",
+      href: "/import",
+      children: [
+        { label: "CSV", href: "/import/csv" },
+        { label: "PDF", href: "/import/pdf" },
+      ],
+    },
+    {
+      label: "Fiscale",
+      href: "/fiscale",
+      children: [
+        { label: "IVA", href: "/fiscale/iva" },
+        { label: country === "IT" ? "IRPEF" : "IRPF", href: "/fiscale/irpf" },
+      ],
+    },
+    { label: "Impostazioni", href: "/impostazioni" },
+  ];
+}
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const isActive =
@@ -97,9 +99,10 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  companyCountry?: string;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, companyCountry }: SidebarProps) {
   const pathname = usePathname();
 
   const stableOnClose = useCallback(() => onClose(), [onClose]);
@@ -140,7 +143,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
         <Separator className="bg-sidebar-border" />
         <nav aria-label="Menu principale" className="flex-1 space-y-1 overflow-y-auto p-4">
-          {navItems.map((item) => (
+          {getNavItems(companyCountry).map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
         </nav>

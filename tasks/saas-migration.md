@@ -5,9 +5,9 @@
 | Fase | Descrizione | Stato | Conversazione |
 |------|-------------|-------|---------------|
 | 0 | Migrazione DB MySQL → PostgreSQL | ✅ Completata | 2026-03-16 |
-| 1 | Supabase Auth (sostituisce JWT custom) | ⬜ Da fare | — |
-| 2 | Isolamento tenant (userId su tutti i modelli) | ⬜ Da fare | — |
-| 3 | Onboarding + sistema fiscale IT/ES | ⬜ Da fare | — |
+| 1 | Supabase Auth (sostituisce JWT custom) | ✅ Completata | 2026-03-16 |
+| 2 | Isolamento tenant (userId su tutti i modelli) | ✅ Completata | 2026-03-16 |
+| 3 | Onboarding + sistema fiscale IT/ES | ✅ Completata | 2026-03-16 |
 | 4 | Import Fatture in Cloud + Supabase Storage | ⬜ Da fare | — |
 | 5 | Stripe billing + limiti fatture | ⬜ Da fare | — |
 | 6 | SDI fatturazione elettronica IT | ⬜ Da fare | — |
@@ -16,7 +16,7 @@
 ## Dependency Graph
 
 ```
-Fase 0 ✅ → Fase 1 → Fase 2 → Fase 3 → Fase 6
+Fase 0 ✅ → Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 6
                               → Fase 4
                               → Fase 5
                               → Fase 7

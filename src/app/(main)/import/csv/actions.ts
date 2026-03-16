@@ -6,6 +6,8 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { VatRegime, InvoiceStatus, PurchaseInvoiceStatus, ExpenseCategory } from "@prisma/client";
 import { detectVatRegime } from "@/lib/vat-regime";
 import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
+import { getTaxRatesForCountry } from "@/lib/tax-rates";
+import { generateDisclaimer } from "@/lib/disclaimers";
 
 // Types for CSV import
 
@@ -220,16 +222,7 @@ async function findOrCreateSupplier(
   return newSupplier.id;
 }
 
-function generateDisclaimer(vatRegime: VatRegime): string {
-  switch (vatRegime) {
-    case "intraUE":
-      return "Operazione in reverse charge ai sensi dell'art. 196 Direttiva 2006/112/CE";
-    case "extraUE":
-      return "Operazione non soggetta a IVA ai sensi dell'art. 21 Ley 37/1992";
-    default:
-      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
-  }
-}
+// generateDisclaimer imported from @/lib/disclaimers
 
 export async function importCSV(
   rows: ParsedRow[],
@@ -241,11 +234,11 @@ export async function importCSV(
 
   const companyCountry = await getCompanyCountry();
 
-  // Load tax rates
-  const taxRatesRaw = await prisma.taxRate.findMany();
-  const taxRates = taxRatesRaw.map((tr) => ({
+  // Load tax rates (filtered by company country)
+  const taxRatesForCountry = await getTaxRatesForCountry();
+  const taxRates = taxRatesForCountry.map((tr) => ({
     id: tr.id,
-    rate: Number(tr.rate),
+    rate: tr.rate,
     type: tr.type,
   }));
 
@@ -366,7 +359,7 @@ export async function importCSV(
       // Get client's VAT regime for disclaimer
       const client = await prisma.client.findUnique({ where: { id: clientId, userId } });
       const vatRegime = client?.vatRegime || "nazionale";
-      const disclaimer = generateDisclaimer(vatRegime);
+      const disclaimer = generateDisclaimer({ companyCountry, vatRegime, hasValidVat: !!(client?.vatNumber) });
 
       // Build lines
       const lines = invoiceRows.map((row) => {

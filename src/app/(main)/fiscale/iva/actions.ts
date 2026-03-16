@@ -2,10 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
 
 export interface VATReportData {
   year: number;
   quarter: number;
+  companyCountry: string;
   ivaRepercutida: number;
   ivaRepercutidaBase: number;
   ivaSoportadaDeducible: number;
@@ -39,6 +41,7 @@ function getQuarterRange(year: number, quarter: number): { start: Date; end: Dat
 
 export async function getVATReport(year: number, quarter: number): Promise<VATReportData> {
   const { userId } = await requireUser();
+  const companyCountry = await getCompanyCountry();
   const { start, end } = getQuarterRange(year, quarter);
 
   // IVA Repercutida: VAT on issued invoices to Spanish (nazionale) clients only
@@ -176,6 +179,7 @@ export async function getVATReport(year: number, quarter: number): Promise<VATRe
   return {
     year,
     quarter,
+    companyCountry,
     ivaRepercutida: totalSalesTax,
     ivaRepercutidaBase: totalSalesBase,
     ivaSoportadaDeducible: totalPurchasesTax,

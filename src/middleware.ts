@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/middleware";
 
 const PUBLIC_PATHS = ["/login", "/registrati"];
+const AUTH_ONLY_PATHS = ["/onboarding"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -29,6 +30,11 @@ export async function middleware(request: NextRequest) {
   // Protected routes: redirect to login if no session
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Auth-only paths (e.g. onboarding): authenticated but no company gate
+  if (AUTH_ONLY_PATHS.some((path) => pathname.startsWith(path))) {
+    return response;
   }
 
   return response;

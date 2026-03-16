@@ -33,6 +33,9 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
   const [data, setData] = useState<IRPFReportData>(initialData);
   const [loading, setLoading] = useState(false);
 
+  const isIT = data.companyCountry === "IT";
+  const taxName = isIT ? "IRPEF" : "IRPF";
+
   useEffect(() => {
     if (year === initialYear) return;
 
@@ -61,7 +64,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   function exportQuarterlyCSV() {
-    const headers = ["Trimestre", "Ricavi", "Spese deducibili", "Reddito netto", "Pago fraccionado"];
+    const headers = ["Trimestre", "Ricavi", "Spese deducibili", "Reddito netto", isIT ? "Acconto" : "Pago fraccionado"];
     const rows = data.quarterlyData.map((q) => [
       `Q${q.quarter}`,
       q.revenue.toFixed(2),
@@ -95,7 +98,9 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Stima IRPF (Modelo 130)</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isIT ? `Stima ${taxName} (Acconti trimestrali)` : `Stima ${taxName} (Modelo 130)`}
+        </h1>
       </div>
 
       {/* Year selector */}
@@ -119,7 +124,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
         {/* Quarterly breakdown */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Pagos Fraccionados Trimestrali (20% reddito netto)</CardTitle>
+            <CardTitle>{isIT ? "Acconti Trimestrali (20% reddito netto)" : "Pagos Fraccionados Trimestrali (20% reddito netto)"}</CardTitle>
             <Button variant="outline" size="sm" onClick={exportQuarterlyCSV}>
               Esporta CSV
             </Button>
@@ -132,7 +137,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
                   <TableHead className="text-right">Ricavi</TableHead>
                   <TableHead className="text-right">Spese deducibili</TableHead>
                   <TableHead className="text-right">Reddito netto</TableHead>
-                  <TableHead className="text-right">Pago fraccionado</TableHead>
+                  <TableHead className="text-right">{isIT ? "Acconto" : "Pago fraccionado"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,7 +189,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">IRPF stimato annuale</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{taxName} stimato annuale</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">
@@ -195,7 +200,9 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Totale pagos fraccionados</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {isIT ? "Totale acconti" : "Totale pagos fraccionados"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-blue-600">
@@ -209,7 +216,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
         {/* IRPF Brackets */}
         <Card className="mt-6">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Scaglioni IRPF (2024)</CardTitle>
+            <CardTitle>Scaglioni {taxName}</CardTitle>
             <Button variant="outline" size="sm" onClick={exportBracketsCSV}>
               Esporta CSV
             </Button>
@@ -238,7 +245,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={2}>Totale IRPF stimato</TableCell>
+                  <TableCell colSpan={2}>Totale {taxName} stimato</TableCell>
                   <TableCell className="text-right">{formatCurrencyES(Math.max(0, data.annualSummary.netIncome))}</TableCell>
                   <TableCell className="text-right text-red-600">{formatCurrencyES(data.annualSummary.estimatedIRPF)}</TableCell>
                 </TableRow>
@@ -251,11 +258,11 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
         {data.annualSummary.totalWithholdings > 0 && (
           <Card className="mt-6 border-yellow-200 bg-yellow-50">
             <CardHeader>
-              <CardTitle>Ritenute IRPF</CardTitle>
+              <CardTitle>Ritenute {taxName}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600">
-                Ritenute IRPF da clienti spagnoli: <span className="font-semibold">{formatCurrencyES(data.annualSummary.totalWithholdings)}</span>
+                Ritenute {taxName}: <span className="font-semibold">{formatCurrencyES(data.annualSummary.totalWithholdings)}</span>
               </p>
             </CardContent>
           </Card>
@@ -265,7 +272,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
         <div className="mt-6 rounded-lg border bg-blue-50 border-blue-200 p-4">
           <p className="text-sm text-blue-800">
             <strong>Nota:</strong> Questa &egrave; una stima basata sui dati registrati nel sistema.
-            Il calcolo reale dell&apos;IRPF pu&ograve; variare in base a deduzioni personali, riduzioni applicabili e altri fattori.
+            Il calcolo reale dell&apos;{taxName} pu&ograve; variare in base a deduzioni personali, riduzioni applicabili e altri fattori.
             Consultare un consulente fiscale per la dichiarazione definitiva.
           </p>
         </div>

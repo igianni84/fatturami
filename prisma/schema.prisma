@@ -54,6 +54,7 @@ enum ExpenseCategory {
 enum TaxRateType {
   standard
   reduced
+  minimum
   super_reduced
   reverse_charge
   export_exempt
@@ -74,6 +75,9 @@ model Company {
   phone      String   @default("")
   iban       String   @default("")
   taxRegime  String   @default("")
+  fiscalCode String   @default("")
+  sdiCode    String   @default("")
+  pec        String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

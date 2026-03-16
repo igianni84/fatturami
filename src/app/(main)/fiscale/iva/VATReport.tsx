@@ -35,6 +35,8 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
   const [data, setData] = useState<VATReportData>(initialData);
   const [loading, setLoading] = useState(false);
 
+  const isIT = data.companyCountry === "IT";
+
   useEffect(() => {
     if (year === initialYear && quarter === initialQuarter) return;
 
@@ -95,7 +97,9 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Dichiarazione IVA Trimestrale (Modelo 303)</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isIT ? "Liquidazione IVA Trimestrale" : "Dichiarazione IVA Trimestrale (Modelo 303)"}
+        </h1>
       </div>
 
       {/* Period selector */}
@@ -135,7 +139,9 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">IVA Repercutida</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {isIT ? "IVA a debito" : "IVA Repercutida"}
+              </CardTitle>
               <p className="text-xs text-muted-foreground">IVA sulle vendite nazionali</p>
             </CardHeader>
             <CardContent>
@@ -145,7 +151,9 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">IVA Soportada Deducible</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {isIT ? "IVA a credito" : "IVA Soportada Deducible"}
+              </CardTitle>
               <p className="text-xs text-muted-foreground">IVA deducibile sugli acquisti</p>
             </CardHeader>
             <CardContent>
@@ -224,7 +232,7 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
         <Card className="mt-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Operazioni Intra-UE (Modelo 349)</CardTitle>
+              <CardTitle>{isIT ? "Operazioni Intra-UE (modello INTRA)" : "Operazioni Intra-UE (Modelo 349)"}</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Riepilogo delle operazioni con soggetti intracomunitari nel trimestre
               </p>

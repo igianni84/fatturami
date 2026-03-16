@@ -6,10 +6,28 @@ import {
   type CompanyFormData,
   type CompanyActionResult,
 } from "./actions";
+
+// Loose form state — discriminated union is enforced server-side by Zod
+type FormState = {
+  name: string;
+  nif: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: "ES" | "IT";
+  email: string;
+  phone: string;
+  iban: string;
+  taxRegime: string;
+  fiscalCode: string;
+  sdiCode: string;
+  pec: string;
+};
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -19,29 +37,33 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-const emptyForm: CompanyFormData = {
-  name: "",
-  nif: "",
-  address: "",
-  city: "",
-  postalCode: "",
-  country: "ES",
-  email: "",
-  phone: "",
-  iban: "",
-  taxRegime: "",
-};
-
 export default function CompanyForm({
   initialData,
 }: {
   initialData: CompanyFormData | null;
 }) {
-  const [formData, setFormData] = useState<CompanyFormData>(
-    initialData ?? emptyForm
+  const [formData, setFormData] = useState<FormState>(
+    initialData ?? {
+      name: "",
+      nif: "",
+      address: "",
+      city: "",
+      postalCode: "",
+      country: "ES",
+      email: "",
+      phone: "",
+      iban: "",
+      taxRegime: "autonomo",
+      fiscalCode: "",
+      sdiCode: "",
+      pec: "",
+    }
   );
   const [result, setResult] = useState<CompanyActionResult | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const country = formData.country;
+  const isIT = country === "IT";
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -51,7 +73,7 @@ export default function CompanyForm({
     e.preventDefault();
     setSaving(true);
     setResult(null);
-    const res = await saveCompany(formData);
+    const res = await saveCompany(formData as CompanyFormData);
     if (res.success) {
       toast.success("Impostazioni salvate");
     }
@@ -59,7 +81,7 @@ export default function CompanyForm({
     setSaving(false);
   }
 
-  function fieldError(field: keyof CompanyFormData): string | undefined {
+  function fieldError(field: string): string | undefined {
     return result?.errors?.[field]?.[0];
   }
 
@@ -70,6 +92,21 @@ export default function CompanyForm({
           <AlertDescription>{result.message}</AlertDescription>
         </Alert>
       )}
+      {result?.message && !result.success && (
+        <Alert variant="destructive">
+          <AlertDescription>{result.message}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Country badge (read-only after onboarding) */}
+      <div>
+        <Label>Paese</Label>
+        <div className="mt-1">
+          <Badge variant="secondary" className="text-sm">
+            {isIT ? "Italia" : "España"} ({country})
+          </Badge>
+        </div>
+      </div>
 
       <div>
         <Label htmlFor="name">Nome / Ragione Sociale *</Label>
@@ -87,20 +124,68 @@ export default function CompanyForm({
       </div>
 
       <div>
-        <Label htmlFor="nif">NIF/CIF *</Label>
+        <Label htmlFor="nif">{isIT ? "Partita IVA *" : "NIF/CIF *"}</Label>
         <Input
           id="nif"
           type="text"
           name="nif"
           value={formData.nif}
           onChange={handleChange}
-          placeholder="Es: 12345678A o B1234567A"
+          placeholder={isIT ? "Es: IT12345678901" : "Es: 12345678A o B1234567A"}
           className="mt-1"
         />
         {fieldError("nif") && (
           <p className="text-sm text-destructive mt-1">{fieldError("nif")}</p>
         )}
       </div>
+
+      {isIT && (
+        <>
+          <div>
+            <Label htmlFor="fiscalCode">Codice Fiscale</Label>
+            <Input
+              id="fiscalCode"
+              type="text"
+              name="fiscalCode"
+              value={formData.fiscalCode}
+              onChange={handleChange}
+              className="mt-1"
+            />
+            {fieldError("fiscalCode") && (
+              <p className="text-sm text-destructive mt-1">{fieldError("fiscalCode")}</p>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="sdiCode">Codice SDI</Label>
+              <Input
+                id="sdiCode"
+                type="text"
+                name="sdiCode"
+                value={formData.sdiCode}
+                onChange={handleChange}
+                placeholder="0000000"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="pec">PEC</Label>
+              <Input
+                id="pec"
+                type="text"
+                name="pec"
+                value={formData.pec}
+                onChange={handleChange}
+                placeholder="azienda@pec.it"
+                className="mt-1"
+              />
+              {fieldError("pec") && (
+                <p className="text-sm text-destructive mt-1">{fieldError("pec")}</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <div>
         <Label htmlFor="address">Indirizzo *</Label>
@@ -152,21 +237,6 @@ export default function CompanyForm({
       </div>
 
       <div>
-        <Label htmlFor="country">Paese *</Label>
-        <Input
-          id="country"
-          type="text"
-          name="country"
-          value={formData.country}
-          onChange={handleChange}
-          className="mt-1"
-        />
-        {fieldError("country") && (
-          <p className="text-sm text-destructive mt-1">{fieldError("country")}</p>
-        )}
-      </div>
-
-      <div>
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
@@ -215,9 +285,19 @@ export default function CompanyForm({
             <SelectValue placeholder="Seleziona..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="autonomo">Autónomo</SelectItem>
-            <SelectItem value="sociedad">Sociedad</SelectItem>
-            <SelectItem value="cooperativa">Cooperativa</SelectItem>
+            {isIT ? (
+              <>
+                <SelectItem value="forfettario">Regime Forfettario</SelectItem>
+                <SelectItem value="ordinario">Regime Ordinario</SelectItem>
+                <SelectItem value="semplificato">Regime Semplificato</SelectItem>
+              </>
+            ) : (
+              <>
+                <SelectItem value="autonomo">Autónomo</SelectItem>
+                <SelectItem value="sociedad">Sociedad</SelectItem>
+                <SelectItem value="cooperativa">Cooperativa</SelectItem>
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>

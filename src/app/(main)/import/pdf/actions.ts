@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PurchaseInvoiceStatus, ExpenseCategory } from "@prisma/client";
+import { getTaxRatesForCountry } from "@/lib/tax-rates";
 
 export interface ReviewItem {
   fileIndex: number;
@@ -41,11 +42,11 @@ export async function importPDFBatch(items: ReviewItem[]): Promise<ImportPDFResu
   let importedCount = 0;
   const createdSuppliersMap = new Map<string, string>();
 
-  // Load tax rates
-  const taxRatesRaw = await prisma.taxRate.findMany();
-  const taxRates = taxRatesRaw.map((tr) => ({
+  // Load tax rates (filtered by company country)
+  const taxRatesForCountry = await getTaxRatesForCountry();
+  const taxRates = taxRatesForCountry.map((tr) => ({
     id: tr.id,
-    rate: Number(tr.rate),
+    rate: tr.rate,
     type: tr.type,
   }));
 

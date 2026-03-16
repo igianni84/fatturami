@@ -74,17 +74,12 @@ export async function getClientsForInvoice(): Promise<ClientOptionWithVat[]> {
 
 // --- Fetch tax rates for dropdown ---
 
+import { getTaxRatesForCountry } from "@/lib/tax-rates";
+import { generateDisclaimer } from "@/lib/disclaimers";
+import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
+
 export async function getTaxRatesForInvoice(): Promise<TaxRateOption[]> {
-  const rates = await prisma.taxRate.findMany({
-    select: { id: true, name: true, rate: true, type: true },
-    orderBy: { rate: "desc" },
-  });
-  return rates.map((r) => ({
-    id: r.id,
-    name: r.name,
-    rate: Number(r.rate),
-    type: r.type,
-  }));
+  return getTaxRatesForCountry();
 }
 
 // --- Determine default tax rate based on client VAT regime ---
@@ -102,23 +97,7 @@ function getDefaultTaxRateType(vatRegime: VatRegime, hasValidVat: boolean): stri
   }
 }
 
-// --- Generate legal disclaimer based on VAT regime ---
-
-function generateDisclaimer(vatRegime: VatRegime, hasValidVat: boolean): string {
-  switch (vatRegime) {
-    case VatRegime.nazionale:
-      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
-    case VatRegime.intraUE:
-      if (hasValidVat) {
-        return "Operazione in reverse charge ai sensi dell'art. 196 Direttiva 2006/112/CE";
-      }
-      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
-    case VatRegime.extraUE:
-      return "Operazione non soggetta a IVA ai sensi dell'art. 21 Ley 37/1992";
-    default:
-      return "Factura sujeta a IVA conforme al artículo 164 de la Ley 37/1992";
-  }
-}
+// generateDisclaimer imported from @/lib/disclaimers
 
 // --- Create invoice ---
 
@@ -154,7 +133,8 @@ export async function createInvoice(
     return { success: false, errors: { clientId: ["Cliente non trovato o non più attivo"] } };
   }
 
-  const disclaimer = generateDisclaimer(client.vatRegime, !!client.vatNumber);
+  const companyCountry = await getCompanyCountry();
+  const disclaimer = generateDisclaimer({ companyCountry, vatRegime: client.vatRegime, hasValidVat: !!client.vatNumber });
   const number = await generateDocumentNumber("FTT", (prefix) =>
     prisma.invoice.findFirst({
       where: { userId: user.userId, number: { startsWith: prefix } },
@@ -519,7 +499,8 @@ export async function convertQuoteToInvoice(
   }
 
   // Generate disclaimer and invoice number
-  const disclaimer = generateDisclaimer(quote.client.vatRegime, !!quote.client.vatNumber);
+  const companyCountry = await getCompanyCountry();
+  const disclaimer = generateDisclaimer({ companyCountry, vatRegime: quote.client.vatRegime, hasValidVat: !!quote.client.vatNumber });
   const number = await generateDocumentNumber("FTT", (prefix) =>
     prisma.invoice.findFirst({
       where: { userId: user.userId, number: { startsWith: prefix } },

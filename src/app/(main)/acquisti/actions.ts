@@ -65,16 +65,10 @@ export async function getSuppliersForSelect(): Promise<SupplierOption[]> {
 
 // --- Fetch tax rates ---
 
+import { getTaxRatesForCountry } from "@/lib/tax-rates";
+
 export async function getTaxRates(): Promise<TaxRateOption[]> {
-  const rates = await prisma.taxRate.findMany({
-    select: { id: true, name: true, rate: true },
-    orderBy: { rate: "desc" },
-  });
-  return rates.map((r) => ({
-    id: r.id,
-    name: r.name,
-    rate: Number(r.rate),
-  }));
+  return getTaxRatesForCountry();
 }
 
 // --- Upload file ---

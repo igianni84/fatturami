@@ -9,22 +9,48 @@ import { getFieldErrors } from "@/lib/utils";
 
 // NIF validation: 8 digits + letter (DNI) or letter + 7 digits + letter (NIE/CIF)
 const nifRegex = /^(\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i;
+// Partita IVA: IT + 11 digits
+const partitaIvaRegex = /^(IT)?\d{11}$/i;
 
-const companySchema = z.object({
+const baseCompanySchema = z.object({
   name: z.string().min(1, "Il nome è obbligatorio"),
+  address: z.string().min(1, "L'indirizzo è obbligatorio"),
+  city: z.string().min(1, "La città è obbligatoria"),
+  postalCode: z.string().min(1, "Il CAP è obbligatorio"),
+  email: z.string().email("Email non valida").or(z.literal("")),
+  phone: z.string(),
+  iban: z.string(),
+});
+
+const esCompanySchema = baseCompanySchema.extend({
+  country: z.literal("ES"),
   nif: z
     .string()
     .min(1, "Il NIF/CIF è obbligatorio")
     .regex(nifRegex, "Formato NIF non valido (es: 12345678A o B1234567A)"),
-  address: z.string().min(1, "L'indirizzo è obbligatorio"),
-  city: z.string().min(1, "La città è obbligatoria"),
-  postalCode: z.string().min(1, "Il CAP è obbligatorio"),
-  country: z.string().min(1, "Il paese è obbligatorio"),
-  email: z.string().email("Email non valida").or(z.literal("")),
-  phone: z.string(),
-  iban: z.string(),
-  taxRegime: z.string(),
+  taxRegime: z.enum(["autonomo", "sociedad", "cooperativa"], {
+    message: "Il regime fiscale è obbligatorio",
+  }),
+  fiscalCode: z.string().optional().default(""),
+  sdiCode: z.string().optional().default(""),
+  pec: z.string().optional().default(""),
 });
+
+const itCompanySchema = baseCompanySchema.extend({
+  country: z.literal("IT"),
+  nif: z
+    .string()
+    .min(1, "La Partita IVA è obbligatoria")
+    .regex(partitaIvaRegex, "Formato Partita IVA non valido (es: IT12345678901)"),
+  taxRegime: z.enum(["forfettario", "ordinario", "semplificato"], {
+    message: "Il regime fiscale è obbligatorio",
+  }),
+  fiscalCode: z.string().optional().default(""),
+  sdiCode: z.string().optional().default(""),
+  pec: z.string().email("Formato PEC non valido").or(z.literal("")).optional().default(""),
+});
+
+const companySchema = z.discriminatedUnion("country", [esCompanySchema, itCompanySchema]);
 
 export type CompanyFormData = z.infer<typeof companySchema>;
 
@@ -47,23 +73,52 @@ export async function getCompany(): Promise<CompanyFormData | null> {
   const { userId } = await requireUser();
   const company = await prisma.company.findUnique({ where: { userId } });
   if (!company) return null;
-  return {
+
+  const base = {
     name: company.name,
     nif: company.nif,
     address: company.address,
     city: company.city,
     postalCode: company.postalCode,
-    country: company.country,
     email: company.email,
     phone: company.phone,
     iban: company.iban,
-    taxRegime: company.taxRegime,
+    fiscalCode: company.fiscalCode,
+    sdiCode: company.sdiCode,
+    pec: company.pec,
+  };
+
+  if (company.country === "IT") {
+    return {
+      ...base,
+      country: "IT" as const,
+      taxRegime: company.taxRegime as "forfettario" | "ordinario" | "semplificato",
+    };
+  }
+  return {
+    ...base,
+    country: "ES" as const,
+    taxRegime: company.taxRegime as "autonomo" | "sociedad" | "cooperativa",
   };
 }
 
 export async function saveCompany(
   data: CompanyFormData
 ): Promise<CompanyActionResult> {
+  const currentUser = await requireUser();
+
+  // Enforce: country cannot change after onboarding
+  const existing = await prisma.company.findUnique({
+    where: { userId: currentUser.userId },
+    select: { country: true },
+  });
+  if (existing && existing.country !== data.country) {
+    return {
+      success: false,
+      message: "Il paese non può essere modificato dopo la configurazione iniziale",
+    };
+  }
+
   const result = companySchema.safeParse(data);
 
   if (!result.success) {
@@ -73,12 +128,33 @@ export async function saveCompany(
     };
   }
 
-  const currentUser = await requireUser();
-
   await prisma.company.upsert({
     where: { userId: currentUser.userId },
-    update: result.data,
-    create: { userId: currentUser.userId, ...result.data },
+    update: {
+      name: result.data.name,
+      nif: result.data.nif,
+      address: result.data.address,
+      city: result.data.city,
+      postalCode: result.data.postalCode,
+      email: result.data.email || "",
+      phone: result.data.phone || "",
+      iban: result.data.iban || "",
+      taxRegime: result.data.taxRegime,
+      fiscalCode: result.data.fiscalCode || "",
+      sdiCode: result.data.sdiCode || "",
+      pec: result.data.pec || "",
+      // country NOT updated — immutable after onboarding
+    },
+    create: {
+      userId: currentUser.userId,
+      ...result.data,
+      email: result.data.email || "",
+      phone: result.data.phone || "",
+      iban: result.data.iban || "",
+      fiscalCode: result.data.fiscalCode || "",
+      sdiCode: result.data.sdiCode || "",
+      pec: result.data.pec || "",
+    },
   });
 
   return { success: true, message: "Dati aziendali salvati con successo" };

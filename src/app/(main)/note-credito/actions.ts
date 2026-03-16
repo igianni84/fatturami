@@ -6,6 +6,7 @@ import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getFieldErrors } from "@/lib/utils";
+import { getTaxRatesForCountry } from "@/lib/tax-rates";
 
 // --- Types ---
 
@@ -79,10 +80,7 @@ export async function getInvoiceForCreditNote(
   const allowedStatuses = ["emessa", "inviata", "pagata"];
   if (!allowedStatuses.includes(invoice.status)) return null;
 
-  const taxRates = await prisma.taxRate.findMany({
-    select: { id: true, name: true, rate: true },
-    orderBy: { rate: "desc" },
-  });
+  const taxRates = await getTaxRatesForCountry();
 
   return {
     id: invoice.id,
@@ -97,11 +95,7 @@ export async function getInvoiceForCreditNote(
       taxRateName: line.taxRate.name,
       taxRateRate: Number(line.taxRate.rate),
     })),
-    taxRates: taxRates.map((r) => ({
-      id: r.id,
-      name: r.name,
-      rate: Number(r.rate),
-    })),
+    taxRates,
   };
 }
 
