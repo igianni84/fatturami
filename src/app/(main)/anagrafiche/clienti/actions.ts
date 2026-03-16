@@ -7,6 +7,7 @@ import { VatRegime } from "@prisma/client";
 import { validateVatVies, isViesEligible } from "@/lib/vies";
 import { detectVatRegime } from "@/lib/vat-regime";
 import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
+import { getFieldErrors } from "@/lib/utils";
 
 // --- List ---
 
@@ -119,8 +120,8 @@ export interface ClientData extends ClientFormData {
 }
 
 export async function getClient(id: string): Promise<ClientData | null> {
-  const client = await prisma.client.findUnique({ where: { id } });
-  if (!client || client.deletedAt) return null;
+  const client = await prisma.client.findFirst({ where: { id, deletedAt: null } });
+  if (!client) return null;
   return {
     name: client.name,
     vatNumber: client.vatNumber,
@@ -151,7 +152,7 @@ export async function createClient(
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 
@@ -240,7 +241,7 @@ export async function updateClient(
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 

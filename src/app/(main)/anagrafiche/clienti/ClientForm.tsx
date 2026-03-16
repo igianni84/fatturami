@@ -30,6 +30,7 @@ import {
   EU_COUNTRY_CODES,
   EXTRA_EU_COUNTRIES,
 } from "@/lib/vat-regime";
+import { toast } from "sonner";
 
 const VAT_REGIME_LABELS: Record<string, string> = {
   nazionale: "Nazionale",
@@ -93,6 +94,7 @@ export default function ClientForm({ initialData, clientId, companyCountry }: Cl
       if (res.viesStatus) {
         setViesStatus(res.viesStatus);
       }
+      toast.success("Cliente salvato");
       router.push("/anagrafiche/clienti");
     } else {
       setResult(res);

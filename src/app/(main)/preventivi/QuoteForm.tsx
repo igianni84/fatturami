@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatAmount } from "@/lib/formatting";
 
 interface LineItem {
   description: string;
@@ -120,13 +121,6 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
 
   function fieldError(field: string): string | null {
     return errors[field]?.[0] || null;
-  }
-
-  function formatCurrency(amount: number): string {
-    return amount.toLocaleString("it-IT", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
   }
 
   return (
@@ -271,7 +265,7 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
                 {/* Remove button */}
                 <div className="md:col-span-2 flex items-end gap-2">
                   <span className="text-sm font-medium text-gray-700">
-                    &euro; {formatCurrency(lineTotal(line))}
+                    &euro; {formatAmount(lineTotal(line))}
                   </span>
                   {lines.length > 1 && (
                     <Button
@@ -306,15 +300,15 @@ export default function QuoteForm({ clients, taxRates }: QuoteFormProps) {
           <div className="w-64 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Imponibile:</span>
-              <span>&euro; {formatCurrency(totalSubtotal)}</span>
+              <span>&euro; {formatAmount(totalSubtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">IVA:</span>
-              <span>&euro; {formatCurrency(totalTax)}</span>
+              <span>&euro; {formatAmount(totalTax)}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t pt-1">
               <span>Totale:</span>
-              <span>&euro; {formatCurrency(totalAmount)}</span>
+              <span>&euro; {formatAmount(totalAmount)}</span>
             </div>
           </div>
         </div>

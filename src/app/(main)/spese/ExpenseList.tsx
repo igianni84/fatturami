@@ -16,6 +16,7 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { expenseCategoryLabels as categoryLabels } from "@/lib/labels";
 
 interface ExpenseListProps {
   expenses: ExpenseListItem[];
@@ -27,18 +28,6 @@ interface ExpenseListProps {
   currentDateTo: string;
   currentDeductible: string;
 }
-
-const categoryLabels: Record<string, string> = {
-  trasporti: "Trasporti",
-  pasti: "Pasti",
-  materiale_ufficio: "Materiale ufficio",
-  telecomunicazioni: "Telecomunicazioni",
-  servizi_professionali: "Servizi professionali",
-  software: "Software",
-  hardware: "Hardware",
-  viaggi: "Viaggi",
-  altro: "Altro",
-};
 
 const allCategories = [
   "tutte",

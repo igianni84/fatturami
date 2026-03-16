@@ -19,21 +19,14 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { getStatusColor } from "@/lib/status-colors";
+import { quoteStatusLabels as statusLabels } from "@/lib/labels";
+import { formatCurrency } from "@/lib/formatting";
 
 interface QuoteListProps {
   quotes: QuoteListItem[];
   totalCount: number;
   page: number;
 }
-
-const statusLabels: Record<string, string> = {
-  bozza: "Bozza",
-  inviato: "Inviato",
-  accettato: "Accettato",
-  rifiutato: "Rifiutato",
-  scaduto: "Scaduto",
-  convertito: "Convertito",
-};
 
 const statusTransitions: Record<string, string[]> = {
   bozza: ["inviato"],
@@ -42,13 +35,6 @@ const statusTransitions: Record<string, string[]> = {
   rifiutato: [],
   scaduto: [],
 };
-
-function formatCurrency(amount: number): string {
-  return amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) {
   const router = useRouter();
@@ -98,7 +84,7 @@ export default function QuoteList({ quotes, totalCount, page }: QuoteListProps) 
     {
       key: "total",
       header: "Totale",
-      render: (item) => `€ ${formatCurrency(item.total)}`,
+      render: (item) => formatCurrency(item.total),
     },
     {
       key: "status",

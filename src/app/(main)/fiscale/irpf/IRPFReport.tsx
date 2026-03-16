@@ -21,17 +21,11 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { downloadCSV } from "@/lib/csv-export";
+import { formatCurrencyES } from "@/lib/formatting";
 
 interface IRPFReportProps {
   initialData: IRPFReportData;
   initialYear: number;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
 }
 
 export default function IRPFReport({ initialData, initialYear }: IRPFReportProps) {
@@ -145,15 +139,15 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
                 {data.quarterlyData.map((q) => (
                   <TableRow key={q.quarter}>
                     <TableCell className="font-medium">Q{q.quarter}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(q.revenue)}</TableCell>
-                    <TableCell className="text-right text-red-600">{formatCurrency(q.deductibleExpenses)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyES(q.revenue)}</TableCell>
+                    <TableCell className="text-right text-red-600">{formatCurrencyES(q.deductibleExpenses)}</TableCell>
                     <TableCell className="text-right">
                       <span className={q.netIncome >= 0 ? "text-green-600" : "text-red-600"}>
-                        {formatCurrency(q.netIncome)}
+                        {formatCurrencyES(q.netIncome)}
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium text-blue-600">
-                      {formatCurrency(q.pagoFraccionado)}
+                      {formatCurrencyES(q.pagoFraccionado)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -161,14 +155,14 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
               <TableFooter>
                 <TableRow>
                   <TableCell>Totale annuale</TableCell>
-                  <TableCell className="text-right">{formatCurrency(data.annualSummary.totalRevenue)}</TableCell>
-                  <TableCell className="text-right text-red-600">{formatCurrency(data.annualSummary.totalDeductibleExpenses)}</TableCell>
+                  <TableCell className="text-right">{formatCurrencyES(data.annualSummary.totalRevenue)}</TableCell>
+                  <TableCell className="text-right text-red-600">{formatCurrencyES(data.annualSummary.totalDeductibleExpenses)}</TableCell>
                   <TableCell className="text-right">
                     <span className={data.annualSummary.netIncome >= 0 ? "text-green-600" : "text-red-600"}>
-                      {formatCurrency(data.annualSummary.netIncome)}
+                      {formatCurrencyES(data.annualSummary.netIncome)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right text-blue-600">{formatCurrency(data.annualSummary.totalPagosFraccionados)}</TableCell>
+                  <TableCell className="text-right text-blue-600">{formatCurrencyES(data.annualSummary.totalPagosFraccionados)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
@@ -183,7 +177,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(data.annualSummary.netIncome)}
+                {formatCurrencyES(data.annualSummary.netIncome)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Ricavi - Spese deducibili</p>
             </CardContent>
@@ -194,7 +188,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">
-                {formatCurrency(data.annualSummary.estimatedIRPF)}
+                {formatCurrencyES(data.annualSummary.estimatedIRPF)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Applicando scaglioni fiscali</p>
             </CardContent>
@@ -205,7 +199,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-blue-600">
-                {formatCurrency(data.annualSummary.totalPagosFraccionados)}
+                {formatCurrencyES(data.annualSummary.totalPagosFraccionados)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Acconti trimestrali versati</p>
             </CardContent>
@@ -234,19 +228,19 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
                 {data.annualSummary.brackets.map((bracket, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      {formatCurrency(bracket.from)} - {bracket.to !== null ? formatCurrency(bracket.to) : "oltre"}
+                      {formatCurrencyES(bracket.from)} - {bracket.to !== null ? formatCurrencyES(bracket.to) : "oltre"}
                     </TableCell>
                     <TableCell className="text-right">{bracket.rate}%</TableCell>
-                    <TableCell className="text-right">{formatCurrency(bracket.taxableInBracket)}</TableCell>
-                    <TableCell className="text-right text-red-600">{formatCurrency(bracket.tax)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyES(bracket.taxableInBracket)}</TableCell>
+                    <TableCell className="text-right text-red-600">{formatCurrencyES(bracket.tax)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               <TableFooter>
                 <TableRow>
                   <TableCell colSpan={2}>Totale IRPF stimato</TableCell>
-                  <TableCell className="text-right">{formatCurrency(Math.max(0, data.annualSummary.netIncome))}</TableCell>
-                  <TableCell className="text-right text-red-600">{formatCurrency(data.annualSummary.estimatedIRPF)}</TableCell>
+                  <TableCell className="text-right">{formatCurrencyES(Math.max(0, data.annualSummary.netIncome))}</TableCell>
+                  <TableCell className="text-right text-red-600">{formatCurrencyES(data.annualSummary.estimatedIRPF)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
@@ -261,7 +255,7 @@ export default function IRPFReport({ initialData, initialYear }: IRPFReportProps
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600">
-                Ritenute IRPF da clienti spagnoli: <span className="font-semibold">{formatCurrency(data.annualSummary.totalWithholdings)}</span>
+                Ritenute IRPF da clienti spagnoli: <span className="font-semibold">{formatCurrencyES(data.annualSummary.totalWithholdings)}</span>
               </p>
             </CardContent>
           </Card>

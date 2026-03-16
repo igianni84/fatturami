@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { ExpenseCategory } from "@prisma/client";
+import { getFieldErrors } from "@/lib/utils";
 
 // --- List ---
 
@@ -88,8 +89,8 @@ export type SupplierActionResult = {
 // --- Get single supplier ---
 
 export async function getSupplier(id: string): Promise<SupplierFormData | null> {
-  const supplier = await prisma.supplier.findUnique({ where: { id } });
-  if (!supplier || supplier.deletedAt) return null;
+  const supplier = await prisma.supplier.findFirst({ where: { id, deletedAt: null } });
+  if (!supplier) return null;
   return {
     name: supplier.name,
     vatNumber: supplier.vatNumber,
@@ -116,7 +117,7 @@ export async function createSupplier(
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 
@@ -145,7 +146,7 @@ export async function updateSupplier(
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 

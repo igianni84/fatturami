@@ -8,6 +8,7 @@ import { ExpenseCategory } from "@prisma/client";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { validateFileType } from "@/lib/file-validation";
+import { getFieldErrors } from "@/lib/utils";
 
 // --- Types ---
 
@@ -181,7 +182,7 @@ export async function createExpense(
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 

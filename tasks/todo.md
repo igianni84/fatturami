@@ -109,6 +109,39 @@
 - [x] **M10**: Badge colori unificati (`status-colors.ts` centralizzato, `scaduto` ora rosso ovunque, rimosso indigo)
 - [x] **B6**: Command palette Cmd+K (`CommandPalette.tsx` con shadcn Command, navigazione + azioni rapide)
 
+## Audit Completo — 2026-03-16
+
+### Fase 1 — Critici
+- [x] DB provider mismatch: docker-compose + .env.example allineati a MySQL (produzione)
+- [x] JWT default secret: warning esplicito in dev, throw in production
+- [x] File duplicati (" 2.*"): rimossi 17+ file Mac Finder duplicates, aggiornato .gitignore
+
+### Fase 2 — UI/UX Coerenza
+- [x] H1 titoli standardizzati a `text-foreground`
+- [x] Toast feedback: `toast.success()` aggiunto su ClientForm, SupplierForm, CompanyForm
+- [x] Type assertions Zod: `getFieldErrors()` utility type-safe in `lib/utils.ts`, rimossi tutti i `as Record<>`
+- [x] window.confirm() su rimozione righe: valutato, mantenuto (A6 "smart" — solo se riga ha contenuto)
+
+### Fase 3 — Codice
+- [x] `formatCurrency()` consolidato: `lib/formatting.ts` (formatCurrency, formatAmount, formatCurrencyES), 14 file aggiornati
+- [x] Document numbers consolidati: `lib/document-numbers.ts` (generateDocumentNumber), 3 actions aggiornati
+- [x] Status/category labels consolidati: `lib/labels.ts` (5 dizionari), 7 file aggiornati
+- [x] Soft delete standardizzato: getClient/getSupplier ora usano `where: { id, deletedAt: null }` nel query
+- [x] `requireAuth()` + `AuthError` rimossi da auth.ts (dead code, mai importati)
+- [x] Indici DB: `@@index([deletedAt, name])` su Client e Supplier
+
+### Fase 4 — Processo
+- [x] npm scripts: db:migrate, db:seed, db:push, db:studio, db:generate
+- [x] Docker healthcheck: wget-based, 30s interval
+- [x] ESLint fix: rimosso FlatCompat (circular structure bug), migrato a flat config nativo con tsParser (4 warning pre-esistenti react-hooks)
+
+### Verifiche
+- [x] TypeScript typecheck: passa senza errori
+- [x] ESLint: funzionante (4 warning pre-esistenti react-hooks/set-state-in-effect)
+- [x] Zero duplicati formatCurrency (solo lib/formatting.ts + pdf/InvoicePDF.tsx intenzionale)
+- [x] Zero `as Record<string, string[]>` type assertions
+- [x] Zero statusLabels/categoryLabels locali duplicati
+
 ## Note
 - ARCH-01 (QuoteStatus "convertito") era un falso positivo: lo schema Prisma ha gia l'enum corretto
-- ESLint ha un errore di configurazione pre-esistente (circular structure nel plugin React)
+- ESLint circular structure bug: risolto migrando da FlatCompat a flat config nativo

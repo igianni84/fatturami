@@ -21,18 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { downloadCSV } from "@/lib/csv-export";
+import { formatCurrencyES } from "@/lib/formatting";
 
 interface VATReportProps {
   initialData: VATReportData;
   initialYear: number;
   initialQuarter: number;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
 }
 
 export default function VATReport({ initialData, initialYear, initialQuarter }: VATReportProps) {
@@ -145,8 +139,8 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
               <p className="text-xs text-muted-foreground">IVA sulle vendite nazionali</p>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-blue-600">{formatCurrency(data.ivaRepercutida)}</p>
-              <p className="text-sm text-muted-foreground mt-1">Base imponibile: {formatCurrency(data.ivaRepercutidaBase)}</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrencyES(data.ivaRepercutida)}</p>
+              <p className="text-sm text-muted-foreground mt-1">Base imponibile: {formatCurrencyES(data.ivaRepercutidaBase)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -155,8 +149,8 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
               <p className="text-xs text-muted-foreground">IVA deducibile sugli acquisti</p>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(data.ivaSoportadaDeducible)}</p>
-              <p className="text-sm text-muted-foreground mt-1">Base imponibile: {formatCurrency(data.ivaSoportadaDeducibleBase)}</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrencyES(data.ivaSoportadaDeducible)}</p>
+              <p className="text-sm text-muted-foreground mt-1">Base imponibile: {formatCurrencyES(data.ivaSoportadaDeducibleBase)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -168,7 +162,7 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
             </CardHeader>
             <CardContent>
               <p className={`text-2xl font-bold ${data.ivaResult >= 0 ? "text-red-600" : "text-green-600"}`}>
-                {formatCurrency(data.ivaResult)}
+                {formatCurrencyES(data.ivaResult)}
               </p>
             </CardContent>
           </Card>
@@ -201,12 +195,12 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
                       <TableCell>
                         {item.rateName} ({item.rate}%)
                       </TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.salesBase)}</TableCell>
-                      <TableCell className="text-right text-blue-600">{formatCurrency(item.salesTax)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.purchasesBase)}</TableCell>
-                      <TableCell className="text-right text-green-600">{formatCurrency(item.purchasesTax)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyES(item.salesBase)}</TableCell>
+                      <TableCell className="text-right text-blue-600">{formatCurrencyES(item.salesTax)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyES(item.purchasesBase)}</TableCell>
+                      <TableCell className="text-right text-green-600">{formatCurrencyES(item.purchasesTax)}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(item.salesTax - item.purchasesTax)}
+                        {formatCurrencyES(item.salesTax - item.purchasesTax)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -214,11 +208,11 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
                 <TableFooter>
                   <TableRow>
                     <TableCell>Totale</TableCell>
-                    <TableCell className="text-right">{formatCurrency(data.ivaRepercutidaBase)}</TableCell>
-                    <TableCell className="text-right text-blue-600">{formatCurrency(data.ivaRepercutida)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(data.ivaSoportadaDeducibleBase)}</TableCell>
-                    <TableCell className="text-right text-green-600">{formatCurrency(data.ivaSoportadaDeducible)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(data.ivaResult)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyES(data.ivaRepercutidaBase)}</TableCell>
+                    <TableCell className="text-right text-blue-600">{formatCurrencyES(data.ivaRepercutida)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyES(data.ivaSoportadaDeducibleBase)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatCurrencyES(data.ivaSoportadaDeducible)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyES(data.ivaResult)}</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -264,7 +258,7 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
                       <TableCell>{op.country}</TableCell>
                       <TableCell>{op.invoiceNumber}</TableCell>
                       <TableCell>{op.date}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(op.amount)}</TableCell>
+                      <TableCell className="text-right">{formatCurrencyES(op.amount)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -272,7 +266,7 @@ export default function VATReport({ initialData, initialYear, initialQuarter }: 
                   <TableRow>
                     <TableCell colSpan={5}>Totale operazioni intra-UE</TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(data.intraEUOperations.reduce((sum, op) => sum + op.amount, 0))}
+                      {formatCurrencyES(data.intraEUOperations.reduce((sum, op) => sum + op.amount, 0))}
                     </TableCell>
                   </TableRow>
                 </TableFooter>

@@ -15,25 +15,10 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/formatting";
+import { quoteStatusLabels as statusLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
-
-function formatCurrency(amount: number): string {
-  return `€ ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-
-const statusLabels: Record<string, string> = {
-  bozza: "Bozza",
-  inviato: "Inviato",
-  accettato: "Accettato",
-  rifiutato: "Rifiutato",
-  scaduto: "Scaduto",
-  convertito: "Convertito",
-};
 
 export default async function QuoteDetailPage({
   params,
@@ -71,7 +56,7 @@ export default async function QuoteDetailPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           Preventivo {quote.number}
         </h1>
         <div className="flex items-center gap-3">

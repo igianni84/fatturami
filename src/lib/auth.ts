@@ -2,12 +2,15 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 
-if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  throw new Error("FATAL: JWT_SECRET environment variable must be set in production");
+if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("FATAL: JWT_SECRET environment variable must be set in production");
+  }
+  console.warn("WARNING: JWT_SECRET not set — using insecure default for development only");
 }
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "default-secret-change-in-production"
+  process.env.JWT_SECRET || "dev-only-insecure-default-do-not-use-in-production"
 );
 
 const COOKIE_NAME = "auth-token";
@@ -74,23 +77,4 @@ export async function getCurrentUser(): Promise<{
   const token = await getAuthToken();
   if (!token) return null;
   return verifyToken(token);
-}
-
-/**
- * Requires authentication. Returns user data or throws an object
- * compatible with Server Action return format.
- */
-export async function requireAuth(): Promise<{ userId: string; email: string }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new AuthError("Non autenticato");
-  }
-  return user;
-}
-
-export class AuthError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AuthError";
-  }
 }

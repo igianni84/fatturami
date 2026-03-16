@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatCurrency } from "@/lib/formatting";
 
 interface PaymentDialogProps {
   open: boolean;
@@ -56,14 +57,6 @@ function saveLastPaymentMethod(method: string) {
   if (typeof window !== "undefined" && method) {
     localStorage.setItem(STORAGE_KEY, method);
   }
-}
-
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === "EUR" ? "\u20ac" : currency === "GBP" ? "\u00a3" : "$";
-  return `${symbol} ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
 }
 
 function roundTwo(n: number): number {

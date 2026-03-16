@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getCurrentUser, verifyPassword, hashPassword } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { getFieldErrors } from "@/lib/utils";
 
 // NIF validation: 8 digits + letter (DNI) or letter + 7 digits + letter (NIE/CIF)
 const nifRegex = /^(\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i;
@@ -64,7 +65,7 @@ export async function saveCompany(
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 
@@ -121,7 +122,7 @@ export async function changePassword(
   if (!parsed.success) {
     return {
       success: false,
-      errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(parsed.error),
     };
   }
 

@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 const EU_COUNTRIES = [
   { code: "AT", name: "Austria" },
@@ -114,6 +115,7 @@ export default function SupplierForm({ initialData, supplierId }: SupplierFormPr
       : await createSupplier(formData);
 
     if (res.success) {
+      toast.success("Fornitore salvato");
       router.push("/anagrafiche/fornitori");
     } else {
       setResult(res);

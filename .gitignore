@@ -47,7 +47,12 @@ yarn-error.log*
 # source data (import originali)
 /INCASSI/
 /SPESE/
+/Fatture in cloud/
 
 # misc project files
 .last-branch
 ralph.sh
+
+# Mac Finder duplicates
+*" 2"*
+*" 2."*

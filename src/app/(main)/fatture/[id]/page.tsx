@@ -16,32 +16,10 @@ import {
   TableFooter,
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatCurrency } from "@/lib/formatting";
+import { invoiceStatusLabels as statusLabels, vatRegimeLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
-
-const statusLabels: Record<string, string> = {
-  bozza: "Bozza",
-  emessa: "Emessa",
-  inviata: "Inviata",
-  parzialmente_pagata: "Parzialmente pagata",
-  pagata: "Pagata",
-  scaduta: "Scaduta",
-};
-
-
-const vatRegimeLabels: Record<string, string> = {
-  nazionale: "Nazionale",
-  intraUE: "Intra-UE",
-  extraUE: "Extra-UE",
-};
-
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  return `${symbol} ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 export default async function InvoiceDetailPage({
   params,
@@ -68,7 +46,7 @@ export default async function InvoiceDetailPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           Fattura {invoice.number}
         </h1>
         <div className="flex gap-3 items-center">

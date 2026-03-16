@@ -2,8 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
+import { getFieldErrors } from "@/lib/utils";
 
 // --- Types ---
 
@@ -66,28 +68,6 @@ export async function getTaxRates(): Promise<TaxRateOption[]> {
     name: r.name,
     rate: Number(r.rate),
   }));
-}
-
-// --- Generate progressive number ---
-
-async function generateQuoteNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `PREV-${year}-`;
-
-  const lastQuote = await prisma.quote.findFirst({
-    where: { number: { startsWith: prefix } },
-    orderBy: { number: "desc" },
-  });
-
-  let nextNum = 1;
-  if (lastQuote) {
-    const lastNum = parseInt(lastQuote.number.split("-")[2], 10);
-    if (!isNaN(lastNum)) {
-      nextNum = lastNum + 1;
-    }
-  }
-
-  return `${prefix}${String(nextNum).padStart(3, "0")}`;
 }
 
 // --- Types for quote list ---
@@ -238,7 +218,7 @@ export async function createQuote(
 
   const result = quoteSchema.safeParse(data);
   if (!result.success) {
-    const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>;
+    const fieldErrors = getFieldErrors(result.error);
     // Flatten line item errors to a general message
     if (result.error.issues.some((i) => i.path[0] === "lines")) {
       const lineErrors = result.error.issues
@@ -260,7 +240,12 @@ export async function createQuote(
     return { success: false, errors: { clientId: ["Cliente non trovato o non più attivo"] } };
   }
 
-  const number = await generateQuoteNumber();
+  const number = await generateDocumentNumber("PREV", (prefix) =>
+    prisma.quote.findFirst({
+      where: { number: { startsWith: prefix } },
+      orderBy: { number: "desc" },
+    })
+  );
 
   await prisma.quote.create({
     data: {

@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatAmount } from "@/lib/formatting";
 
 interface LineItem {
   description: string;
@@ -122,13 +123,6 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
 
   function fieldError(field: string): string | null {
     return errors[field]?.[0] || null;
-  }
-
-  function formatCurrency(amount: number): string {
-    return amount.toLocaleString("it-IT", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
   }
 
   const currencySymbol =
@@ -276,7 +270,7 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
                 {/* Line total + remove */}
                 <div className="md:col-span-2 flex items-end gap-2">
                   <span className="text-sm font-medium text-gray-700">
-                    {currencySymbol} {formatCurrency(lineTotal(line))}
+                    {currencySymbol} {formatAmount(lineTotal(line))}
                   </span>
                   {lines.length > 1 && (
                     <Button
@@ -303,19 +297,19 @@ export default function CreditNoteForm({ invoice }: CreditNoteFormProps) {
             <div className="flex justify-between">
               <span className="text-gray-600">Imponibile:</span>
               <span>
-                {currencySymbol} {formatCurrency(totalSubtotal)}
+                {currencySymbol} {formatAmount(totalSubtotal)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">IVA:</span>
               <span>
-                {currencySymbol} {formatCurrency(totalTax)}
+                {currencySymbol} {formatAmount(totalTax)}
               </span>
             </div>
             <div className="flex justify-between font-bold text-base border-t pt-1">
               <span>Totale nota di credito:</span>
               <span>
-                {currencySymbol} {formatCurrency(totalAmount)}
+                {currencySymbol} {formatAmount(totalAmount)}
               </span>
             </div>
           </div>

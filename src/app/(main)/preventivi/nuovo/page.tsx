@@ -11,7 +11,7 @@ export default async function NuovoPreventivo() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Nuovo Preventivo</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Nuovo Preventivo</h1>
       <QuoteForm clients={clients} taxRates={taxRates} />
     </div>
   );

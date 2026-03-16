@@ -15,19 +15,12 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/formatting";
 
 interface CreditNoteListProps {
   creditNotes: CreditNoteListItem[];
   totalCount: number;
   page: number;
-}
-
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  return `${symbol} ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
 }
 
 export default function CreditNoteList({

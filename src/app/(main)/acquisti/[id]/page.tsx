@@ -14,33 +14,10 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/formatting";
+import { purchaseInvoiceStatusLabels as statusLabels, expenseCategoryLabels as categoryLabels } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
-
-const statusLabels: Record<string, string> = {
-  registrata: "Registrata",
-  pagata: "Pagata",
-};
-
-
-const categoryLabels: Record<string, string> = {
-  servizi_professionali: "Servizi professionali",
-  software: "Software",
-  hardware: "Hardware",
-  viaggi: "Viaggi",
-  telecomunicazioni: "Telecomunicazioni",
-  trasporti: "Trasporti",
-  pasti: "Pasti",
-  materiale_ufficio: "Materiale ufficio",
-  altro: "Altro",
-};
-
-function formatCurrency(amount: number): string {
-  return `€ ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 export default async function PurchaseInvoiceDetailPage({
   params,
@@ -64,7 +41,7 @@ export default async function PurchaseInvoiceDetailPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           Fattura acquisto {invoice.number}
         </h1>
         <Button variant="outline" asChild>

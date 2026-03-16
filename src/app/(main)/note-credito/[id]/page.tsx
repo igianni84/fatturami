@@ -13,16 +13,9 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/formatting";
 
 export const dynamic = "force-dynamic";
-
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  return `${symbol} ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 export default async function CreditNoteDetailPage({
   params,
@@ -64,7 +57,7 @@ export default async function CreditNoteDetailPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           Nota di Credito {creditNote.number}
         </h1>
         <div className="flex items-center gap-3">

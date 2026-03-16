@@ -2,8 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
+import { getFieldErrors } from "@/lib/utils";
 
 // --- Types ---
 
@@ -54,28 +56,6 @@ const creditNoteSchema = z.object({
 });
 
 export type CreditNoteFormData = z.infer<typeof creditNoteSchema>;
-
-// --- Generate progressive number ---
-
-async function generateCreditNoteNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `NC-${year}-`;
-
-  const lastNote = await prisma.creditNote.findFirst({
-    where: { number: { startsWith: prefix } },
-    orderBy: { number: "desc" },
-  });
-
-  let nextNum = 1;
-  if (lastNote) {
-    const lastNum = parseInt(lastNote.number.split("-")[2], 10);
-    if (!isNaN(lastNum)) {
-      nextNum = lastNum + 1;
-    }
-  }
-
-  return `${prefix}${String(nextNum).padStart(3, "0")}`;
-}
 
 // --- Fetch invoice data for credit note form ---
 
@@ -225,7 +205,7 @@ export async function createCreditNote(
 
   const result = creditNoteSchema.safeParse(data);
   if (!result.success) {
-    const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>;
+    const fieldErrors = getFieldErrors(result.error);
     if (result.error.issues.some((i) => i.path[0] === "lines")) {
       const lineErrors = result.error.issues
         .filter((i) => i.path[0] === "lines")
@@ -255,7 +235,12 @@ export async function createCreditNote(
     };
   }
 
-  const number = await generateCreditNoteNumber();
+  const number = await generateDocumentNumber("NC", (prefix) =>
+    prisma.creditNote.findFirst({
+      where: { number: { startsWith: prefix } },
+      orderBy: { number: "desc" },
+    })
+  );
 
   const creditNote = await prisma.creditNote.create({
     data: {

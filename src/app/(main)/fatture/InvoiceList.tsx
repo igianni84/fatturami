@@ -19,6 +19,8 @@ import { PaymentDialog } from "@/components/PaymentDialog";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { getStatusColor } from "@/lib/status-colors";
+import { invoiceStatusLabels as statusLabels } from "@/lib/labels";
+import { formatCurrency } from "@/lib/formatting";
 
 interface InvoiceListProps {
   invoices: InvoiceListItem[];
@@ -26,15 +28,6 @@ interface InvoiceListProps {
   page: number;
   currentStatus: string;
 }
-
-const statusLabels: Record<string, string> = {
-  bozza: "Bozza",
-  emessa: "Emessa",
-  inviata: "Inviata",
-  parzialmente_pagata: "Parzialmente pagata",
-  pagata: "Pagata",
-  scaduta: "Scaduta",
-};
 
 const statusTransitions: Record<string, string[]> = {
   bozza: ["emessa"],
@@ -48,14 +41,6 @@ const statusTransitions: Record<string, string[]> = {
 const payableStatuses = ["emessa", "inviata", "parzialmente_pagata", "scaduta"];
 
 const allStatuses = ["tutti", "bozza", "emessa", "inviata", "parzialmente_pagata", "pagata", "scaduta"];
-
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  return `${symbol} ${amount.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 export default function InvoiceList({
   invoices,

@@ -11,7 +11,7 @@ export default async function NuovoAcquistoPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-foreground mb-6">
         Registra fattura di acquisto
       </h1>
       <PurchaseInvoiceForm suppliers={suppliers} taxRates={taxRates} />

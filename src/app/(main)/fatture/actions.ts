@@ -2,9 +2,11 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { generateDocumentNumber } from "@/lib/document-numbers";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/library";
 import { VatRegime, InvoiceStatus, Prisma } from "@prisma/client";
+import { getFieldErrors } from "@/lib/utils";
 
 // --- Types ---
 
@@ -84,28 +86,6 @@ export async function getTaxRatesForInvoice(): Promise<TaxRateOption[]> {
   }));
 }
 
-// --- Generate progressive number ---
-
-async function generateInvoiceNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `FTT-${year}-`;
-
-  const lastInvoice = await prisma.invoice.findFirst({
-    where: { number: { startsWith: prefix } },
-    orderBy: { number: "desc" },
-  });
-
-  let nextNum = 1;
-  if (lastInvoice) {
-    const lastNum = parseInt(lastInvoice.number.split("-")[2], 10);
-    if (!isNaN(lastNum)) {
-      nextNum = lastNum + 1;
-    }
-  }
-
-  return `${prefix}${String(nextNum).padStart(3, "0")}`;
-}
-
 // --- Determine default tax rate based on client VAT regime ---
 
 function getDefaultTaxRateType(vatRegime: VatRegime, hasValidVat: boolean): string {
@@ -151,7 +131,7 @@ export async function createInvoice(
 
   const result = invoiceSchema.safeParse(data);
   if (!result.success) {
-    const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>;
+    const fieldErrors = getFieldErrors(result.error);
     if (result.error.issues.some((i) => i.path[0] === "lines")) {
       const lineErrors = result.error.issues
         .filter((i) => i.path[0] === "lines")
@@ -174,7 +154,12 @@ export async function createInvoice(
   }
 
   const disclaimer = generateDisclaimer(client.vatRegime, !!client.vatNumber);
-  const number = await generateInvoiceNumber();
+  const number = await generateDocumentNumber("FTT", (prefix) =>
+    prisma.invoice.findFirst({
+      where: { number: { startsWith: prefix } },
+      orderBy: { number: "desc" },
+    })
+  );
 
   await prisma.invoice.create({
     data: {
@@ -530,7 +515,12 @@ export async function convertQuoteToInvoice(
 
   // Generate disclaimer and invoice number
   const disclaimer = generateDisclaimer(quote.client.vatRegime, !!quote.client.vatNumber);
-  const number = await generateInvoiceNumber();
+  const number = await generateDocumentNumber("FTT", (prefix) =>
+    prisma.invoice.findFirst({
+      where: { number: { startsWith: prefix } },
+      orderBy: { number: "desc" },
+    })
+  );
 
   // Create invoice from quote data
   const invoice = await prisma.invoice.create({
@@ -589,7 +579,7 @@ export async function addPayment(data: {
   if (!result.success) {
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors as Record<string, string[]>,
+      errors: getFieldErrors(result.error),
     };
   }
 

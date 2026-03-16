@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 const emptyForm: CompanyFormData = {
   name: "",
@@ -51,6 +52,9 @@ export default function CompanyForm({
     setSaving(true);
     setResult(null);
     const res = await saveCompany(formData);
+    if (res.success) {
+      toast.success("Impostazioni salvate");
+    }
     setResult(res);
     setSaving(false);
   }

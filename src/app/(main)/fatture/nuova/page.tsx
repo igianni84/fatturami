@@ -11,7 +11,7 @@ export default async function NuovaFattura() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Nuova Fattura</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Nuova Fattura</h1>
       <InvoiceForm clients={clients} taxRates={taxRates} />
     </div>
   );

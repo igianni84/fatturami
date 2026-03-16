@@ -18,17 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/formatting";
 
 const periodLabels: Record<string, string> = {
   month: "Mese",
   quarter: "Trimestre",
   year: "Anno",
 };
-
-function formatCurrency(amount: number, currency: string = "EUR"): string {
-  const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  return `${symbol} ${amount.toFixed(2)}`;
-}
 
 export default function Dashboard({ data, period }: { data: DashboardData; period: string }) {
   const router = useRouter();

@@ -23,6 +23,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { getStatusColor } from "@/lib/status-colors";
+import { purchaseInvoiceStatusLabels as statusLabels, expenseCategoryLabels as categoryLabels } from "@/lib/labels";
 
 interface PurchaseInvoiceListProps {
   purchaseInvoices: PurchaseInvoiceListItem[];
@@ -35,23 +36,6 @@ interface PurchaseInvoiceListProps {
   currentDateFrom: string;
   currentDateTo: string;
 }
-
-const statusLabels: Record<string, string> = {
-  registrata: "Registrata",
-  pagata: "Pagata",
-};
-
-const categoryLabels: Record<string, string> = {
-  servizi_professionali: "Servizi professionali",
-  software: "Software",
-  hardware: "Hardware",
-  viaggi: "Viaggi",
-  telecomunicazioni: "Telecomunicazioni",
-  trasporti: "Trasporti",
-  pasti: "Pasti",
-  materiale_ufficio: "Materiale ufficio",
-  altro: "Altro",
-};
 
 const allStatuses = ["tutti", "registrata", "pagata"];
 const allCategories = [
