@@ -9,7 +9,10 @@ export type AuditAction =
   | "AUTH_FAILURE"
   | "REGISTRATION_SUCCESS"
   | "REGISTRATION_FAILURE"
-  | "REGISTRATION_RATE_LIMITED";
+  | "REGISTRATION_RATE_LIMITED"
+  | "MAGIC_LINK_SENT"
+  | "MAGIC_LINK_FAILURE"
+  | "MAGIC_LINK_RATE_LIMITED";
 
 export async function logAuditEvent(params: {
   userId?: string;

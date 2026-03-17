@@ -52,3 +52,55 @@ export async function login(
 
   return { success: true };
 }
+
+const magicLinkSchema = z.object({
+  email: z.string().email("Email non valida"),
+});
+
+export async function sendMagicLink(
+  formData: { email: string }
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = magicLinkSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: "Email non valida" };
+  }
+
+  const { email } = parsed.data;
+
+  // Rate limiting: reuse login limiter
+  const rateCheck = loginRateLimiter.check(email.toLowerCase());
+  if (!rateCheck.allowed) {
+    await logAuditEvent({
+      action: "MAGIC_LINK_RATE_LIMITED",
+      details: { email, retryAfterMs: rateCheck.retryAfterMs },
+    });
+    const retryMinutes = Math.ceil(rateCheck.retryAfterMs / 60_000);
+    return {
+      success: false,
+      error: `Troppi tentativi. Riprova tra ${retryMinutes} minut${retryMinutes === 1 ? "o" : "i"}.`,
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    await logAuditEvent({
+      action: "MAGIC_LINK_FAILURE",
+      details: { email, error: error.message },
+    });
+    return { success: false, error: "Errore nell'invio del magic link. Riprova." };
+  }
+
+  await logAuditEvent({
+    action: "MAGIC_LINK_SENT",
+    details: { email },
+  });
+
+  return { success: true };
+}

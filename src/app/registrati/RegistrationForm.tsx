@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { register } from "./actions";
+import { OAuthButtons } from "@/components/OAuthButtons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export default function RegistrationForm() {
   const [email, setEmail] = useState("");
@@ -60,7 +62,20 @@ export default function RegistrationForm() {
           <CardHeader className="sr-only">
             <CardTitle>Registrazione</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            <OAuthButtons />
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  oppure
+                </span>
+              </div>
+            </div>
+
             {result?.success ? (
               <Alert>
                 <AlertDescription>{result.message}</AlertDescription>
