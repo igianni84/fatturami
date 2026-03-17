@@ -37,6 +37,7 @@ function getNavItems(country?: string): NavItem[] {
       children: [
         { label: "CSV", href: "/import/csv" },
         { label: "PDF", href: "/import/pdf" },
+        { label: "Fatture in Cloud", href: "/import/fattureincloud" },
       ],
     },
     {
