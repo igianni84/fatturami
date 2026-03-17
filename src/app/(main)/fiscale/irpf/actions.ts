@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { getCompanyCountry } from "@/app/(main)/impostazioni/actions";
+import { getFiscalStrategy } from "@/lib/fiscal";
 
 export interface IRPFReportData {
   year: number;
@@ -35,21 +36,7 @@ export interface BracketBreakdown {
   tax: number;
 }
 
-// Spanish IRPF brackets
-const IRPF_BRACKETS_ES = [
-  { from: 0, to: 12450, rate: 19 },
-  { from: 12450, to: 20200, rate: 24 },
-  { from: 20200, to: 35200, rate: 30 },
-  { from: 35200, to: 60000, rate: 37 },
-  { from: 60000, to: null as number | null, rate: 45 },
-];
-
-// Italian IRPEF brackets
-const IRPEF_BRACKETS_IT = [
-  { from: 0, to: 28000, rate: 23 },
-  { from: 28000, to: 50000, rate: 35 },
-  { from: 50000, to: null as number | null, rate: 43 },
-];
+// Income tax brackets are now provided by FiscalStrategy — see src/lib/fiscal/
 
 function getQuarterRange(year: number, quarter: number): { start: Date; end: Date } {
   const quarterStart = (quarter - 1) * 3;
@@ -193,7 +180,8 @@ export async function getIRPFReport(year: number): Promise<IRPFReportData> {
   }
 
   const netIncome = totalRevenue - totalDeductibleExpenses;
-  const brackets = companyCountry === "IT" ? IRPEF_BRACKETS_IT : IRPF_BRACKETS_ES;
+  const strategy = getFiscalStrategy(companyCountry);
+  const brackets = strategy.getIncomeTaxBrackets();
   const { total: estimatedIRPF, brackets: bracketBreakdown } = calculateTax(Math.max(0, netIncome), brackets);
   const totalPagosFraccionados = quarterlyData.reduce((sum, q) => sum + q.pagoFraccionado, 0);
 
