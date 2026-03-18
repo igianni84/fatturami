@@ -3,6 +3,8 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import type Stripe from "stripe";
 
+export const dynamic = "force-dynamic";
+
 /** Extract current_period_end from the first subscription item */
 async function getSubscriptionPeriodEnd(subscriptionId: string): Promise<Date> {
   const sub = await stripe.subscriptions.retrieve(subscriptionId, {
