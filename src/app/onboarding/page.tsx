@@ -14,7 +14,7 @@ export default async function OnboardingPage() {
   });
 
   if (company) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   return <OnboardingWizard />;

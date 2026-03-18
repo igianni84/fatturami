@@ -18,11 +18,19 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Landing page: public, but redirect authenticated users to dashboard
+  if (pathname === "/") {
+    if (user) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return response;
+  }
+
   // Allow public paths
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
     // If already authenticated, redirect away from login/register
     if (user) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return response;
   }

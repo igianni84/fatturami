@@ -40,7 +40,7 @@ export default function LoginForm() {
       } else {
         const result = await login({ email, password });
         if (result.success) {
-          router.push("/");
+          router.push("/dashboard");
           router.refresh();
         } else {
           setError(result.error || "Errore durante il login");

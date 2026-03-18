@@ -20,7 +20,7 @@ interface NavCommand {
 
 const commands: NavCommand[] = [
   // Documenti
-  { label: "Dashboard", href: "/", group: "Navigazione" },
+  { label: "Dashboard", href: "/dashboard", group: "Navigazione" },
   { label: "Fatture", href: "/fatture", group: "Navigazione" },
   { label: "Preventivi", href: "/preventivi", group: "Navigazione" },
   { label: "Note Credito", href: "/note-credito", group: "Navigazione" },

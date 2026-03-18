@@ -17,7 +17,7 @@ interface NavItem {
 
 function getNavItems(country?: string): NavItem[] {
   return [
-    { label: "Dashboard", href: "/" },
+    { label: "Dashboard", href: "/dashboard" },
     { label: "Fatture", href: "/fatture" },
     { label: "Preventivi", href: "/preventivi" },
     { label: "Note Credito", href: "/note-credito" },
@@ -55,9 +55,7 @@ function getNavItems(country?: string): NavItem[] {
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const isActive =
-    item.href === "/"
-      ? pathname === "/"
-      : pathname.startsWith(item.href);
+    pathname === item.href || pathname.startsWith(item.href + "/");
 
   if (item.children) {
     const isParentActive = pathname.startsWith(item.href);

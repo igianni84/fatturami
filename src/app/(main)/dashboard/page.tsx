@@ -1,11 +1,11 @@
-import { getDashboardData } from "./dashboard/actions";
-import Dashboard from "./dashboard/Dashboard";
+import { getDashboardData } from "./actions";
+import Dashboard from "./Dashboard";
 
 export const dynamic = "force-dynamic";
 
 const VALID_PERIODS = ["month", "quarter", "year"];
 
-export default async function Home({
+export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string }>;

@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-display",
+});
 
 export const metadata: Metadata = {
-  title: "Sistema di Fatturazione",
-  description: "Sistema di Fatturazione Internazionale",
+  title: "fatturami.cloud — Fatturazione per Freelancer",
+  description:
+    "Fatture, preventivi, report fiscali. Tutto in un unico posto. Gratis per iniziare.",
 };
 
 export default function RootLayout({
@@ -21,7 +26,8 @@ export default function RootLayout({
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
-          inter.variable
+          dmSans.variable,
+          playfair.variable
         )}
       >
         {children}

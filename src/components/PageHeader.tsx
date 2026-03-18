@@ -66,7 +66,7 @@ export function PageBreadcrumb() {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/">Dashboard</Link>
+            <Link href="/dashboard">Dashboard</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {items.map((item, index) => (

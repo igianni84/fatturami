@@ -60,7 +60,7 @@ export default function OnboardingWizard() {
       taxRegime: formData.taxRegime,
     } as OnboardingFormData);
     if (res.success) {
-      router.push("/");
+      router.push("/dashboard");
     } else {
       setResult(res);
       // If field errors exist, navigate to the relevant step
