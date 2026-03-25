@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Logo from "@/components/Logo";
 
 interface NavItem {
   label: string;
@@ -130,7 +131,7 @@ export default function Sidebar({ isOpen, onClose, companyCountry }: SidebarProp
         )}
       >
         <div className="flex h-14 items-center justify-between px-4">
-          <h1 className="text-lg font-bold text-sidebar-foreground">Fatturazione</h1>
+          <Logo iconClassName="h-6" textClassName="text-sidebar-foreground" />
           <Button
             variant="ghost"
             size="icon"

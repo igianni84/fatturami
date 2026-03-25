@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: "fatturami.cloud — Fatturazione per Freelancer",
   description:
     "Fatture, preventivi, report fiscali. Tutto in un unico posto. Gratis per iniziare.",
+  icons: {
+    icon: { url: "/favicon.svg", type: "image/svg+xml" },
+  },
 };
 
 export default function RootLayout({

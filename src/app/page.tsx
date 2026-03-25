@@ -11,6 +11,7 @@ import {
   Zap,
   Globe,
 } from "lucide-react";
+import Logo from "@/components/Logo";
 import PricingSection from "./PricingSection";
 
 const features = [
@@ -109,9 +110,7 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <span className="font-display text-lg font-semibold tracking-tight text-white">
-            fatturami.cloud
-          </span>
+          <Logo textClassName="text-white" />
           <div className="flex items-center gap-6">
             <a
               href="#funzionalita"
@@ -352,9 +351,7 @@ export default function LandingPage() {
       <footer className="border-t border-slate-200 bg-white px-6 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
           <div>
-            <span className="font-display text-base font-semibold text-slate-900">
-              fatturami.cloud
-            </span>
+            <Logo iconClassName="h-6" textClassName="text-base text-slate-900" />
             <p className="mt-1 text-sm text-slate-500">
               Fatto con cura in Italia.
             </p>
