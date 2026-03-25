@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getPurchaseInvoices, getSuppliersForSelect } from "./actions";
 import PurchaseInvoiceList from "./PurchaseInvoiceList";
 
@@ -29,16 +30,18 @@ export default async function AcquistiPage({
   ]);
 
   return (
-    <PurchaseInvoiceList
-      purchaseInvoices={purchaseInvoices}
-      totalCount={totalCount}
-      page={page}
-      suppliers={suppliers}
-      currentStatus={status}
-      currentSupplierId={supplierId}
-      currentCategory={category}
-      currentDateFrom={dateFrom}
-      currentDateTo={dateTo}
-    />
+    <Suspense>
+      <PurchaseInvoiceList
+        purchaseInvoices={purchaseInvoices}
+        totalCount={totalCount}
+        page={page}
+        suppliers={suppliers}
+        currentStatus={status}
+        currentSupplierId={supplierId}
+        currentCategory={category}
+        currentDateFrom={dateFrom}
+        currentDateTo={dateTo}
+      />
+    </Suspense>
   );
 }

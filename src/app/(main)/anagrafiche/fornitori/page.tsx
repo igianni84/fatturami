@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { getSuppliers } from "./actions";
 import SupplierList from "./SupplierList";
 
@@ -15,11 +16,13 @@ export default async function FornitoriPage({ searchParams }: PageProps) {
   const { suppliers, totalCount } = await getSuppliers(search, page, 10);
 
   return (
-    <SupplierList
-      suppliers={suppliers}
-      totalCount={totalCount}
-      page={page}
-      search={search}
-    />
+    <Suspense>
+      <SupplierList
+        suppliers={suppliers}
+        totalCount={totalCount}
+        page={page}
+        search={search}
+      />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { getQuotes } from "./actions";
 import QuoteList from "./QuoteList";
 
@@ -14,10 +15,12 @@ export default async function PreventiviPage({
   const { quotes, totalCount } = await getQuotes({ page, pageSize: 10 });
 
   return (
-    <QuoteList
-      quotes={quotes}
-      totalCount={totalCount}
-      page={page}
-    />
+    <Suspense>
+      <QuoteList
+        quotes={quotes}
+        totalCount={totalCount}
+        page={page}
+      />
+    </Suspense>
   );
 }

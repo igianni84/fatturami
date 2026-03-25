@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getExpenses } from "./actions";
 import ExpenseList from "./ExpenseList";
 
@@ -25,15 +26,17 @@ export default async function SpesePage({
   });
 
   return (
-    <ExpenseList
-      expenses={expenses}
-      totalCount={totalCount}
-      totalAmount={totalAmount}
-      page={page}
-      currentCategory={category}
-      currentDateFrom={dateFrom}
-      currentDateTo={dateTo}
-      currentDeductible={deductible}
-    />
+    <Suspense>
+      <ExpenseList
+        expenses={expenses}
+        totalCount={totalCount}
+        totalAmount={totalAmount}
+        page={page}
+        currentCategory={category}
+        currentDateFrom={dateFrom}
+        currentDateTo={dateTo}
+        currentDeductible={deductible}
+      />
+    </Suspense>
   );
 }

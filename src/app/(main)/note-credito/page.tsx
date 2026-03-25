@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getCreditNotes } from "./actions";
 import CreditNoteList from "./CreditNoteList";
 
@@ -14,10 +15,12 @@ export default async function CreditNotesPage({
   const { items, totalCount } = await getCreditNotes({ page, pageSize: 10 });
 
   return (
-    <CreditNoteList
-      creditNotes={items}
-      totalCount={totalCount}
-      page={page}
-    />
+    <Suspense>
+      <CreditNoteList
+        creditNotes={items}
+        totalCount={totalCount}
+        page={page}
+      />
+    </Suspense>
   );
 }

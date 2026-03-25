@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { getInvoices } from "./actions";
 import InvoiceList from "./InvoiceList";
 
@@ -19,11 +20,13 @@ export default async function FatturePage({
   });
 
   return (
-    <InvoiceList
-      invoices={invoices}
-      totalCount={totalCount}
-      page={page}
-      currentStatus={status}
-    />
+    <Suspense>
+      <InvoiceList
+        invoices={invoices}
+        totalCount={totalCount}
+        page={page}
+        currentStatus={status}
+      />
+    </Suspense>
   );
 }

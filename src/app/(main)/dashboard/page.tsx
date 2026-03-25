@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getDashboardData } from "./actions";
 import Dashboard from "./Dashboard";
 
@@ -16,5 +17,9 @@ export default async function DashboardPage({
     : "month";
 
   const data = await getDashboardData(period);
-  return <Dashboard data={data} period={period} />;
+  return (
+    <Suspense>
+      <Dashboard data={data} period={period} />
+    </Suspense>
+  );
 }
